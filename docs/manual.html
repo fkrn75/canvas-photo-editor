@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canvas Photo Editor — 사용 매뉴얼</title>
+<style>
+  /* 앱과 어울리는 다크 테마. 외부 폰트·이미지 없이 자족(이미지는 base64 임베드) */
+  :root{
+    --bg:#1e1e1e; --panel:#2b2b2b; --panel2:#333; --line:#444;
+    --fg:#e8e8e8; --muted:#a8a8a8; --accent:#2d8cf0; --accent2:#1f6fc4;
+    --chip:#3a3a3a; --ok:#3fb950; --warn:#d29922;
+    --radius:10px; --maxw:1080px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font-family:"Segoe UI","Malgun Gothic",system-ui,sans-serif;
+    line-height:1.65; font-size:15px;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 20px}
+
+  header.hero{
+    padding:48px 20px 36px; text-align:center;
+    background:linear-gradient(180deg,#262626,#1e1e1e);
+    border-bottom:1px solid var(--line);
+  }
+  header.hero h1{margin:0 0 8px; font-size:30px; letter-spacing:-.4px}
+  header.hero p{margin:4px 0; color:var(--muted)}
+  .badge{display:inline-block; margin-top:10px; padding:4px 12px; background:var(--chip);
+    border:1px solid var(--line); border-radius:999px; font-size:13px; color:var(--muted)}
+
+  nav.toc{
+    position:sticky; top:0; z-index:10; background:rgba(30,30,30,.92);
+    backdrop-filter:blur(6px); border-bottom:1px solid var(--line); padding:10px 0;
+  }
+  nav.toc ul{list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:6px; justify-content:center}
+  nav.toc a{padding:5px 12px; border-radius:999px; font-size:13px; color:var(--muted); border:1px solid transparent}
+  nav.toc a:hover{background:var(--chip); color:var(--fg); text-decoration:none; border-color:var(--line)}
+
+  section{padding:36px 0; border-bottom:1px solid var(--line)}
+  h2{font-size:22px; margin:0 0 6px; display:flex; align-items:center; gap:10px}
+  h2 .num{display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+    background:var(--accent); color:#fff; border-radius:8px; font-size:15px; flex:none}
+  h3{font-size:17px; margin:22px 0 8px; color:#fff}
+  .lead{color:var(--muted); margin:0 0 12px}
+
+  figure{margin:0}
+  .shot{width:100%; height:auto; border:1px solid var(--line); border-radius:var(--radius);
+    box-shadow:0 8px 30px rgba(0,0,0,.4); display:block}
+  figcaption{color:var(--muted); font-size:13px; margin-top:8px; text-align:center}
+
+  .cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; margin-top:14px}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px}
+  .card h4{margin:0 0 8px; font-size:15px; color:#fff; display:flex; align-items:center; gap:8px}
+  .card ul{margin:6px 0 0; padding-left:18px; color:var(--muted)}
+  .card li{margin:3px 0}
+  .card .k{display:inline-block; min-width:20px; padding:1px 7px; margin-right:4px; background:var(--chip);
+    border:1px solid var(--line); border-radius:5px; font-family:Consolas,monospace; font-size:12px; color:var(--fg)}
+
+  table{width:100%; border-collapse:collapse; margin-top:14px; font-size:14px}
+  th,td{padding:8px 10px; border:1px solid var(--line); text-align:left}
+  th{background:var(--panel2); color:#fff}
+  td:first-child{color:var(--muted)}
+  kbd{display:inline-block; padding:2px 8px; background:var(--chip); border:1px solid var(--line);
+    border-bottom-width:2px; border-radius:6px; font-family:Consolas,monospace; font-size:12px; color:#fff}
+
+  .steps{counter-reset:step; list-style:none; padding:0; margin:12px 0}
+  .steps li{position:relative; padding:8px 0 8px 42px; border-bottom:1px dashed var(--line)}
+  .steps li:last-child{border-bottom:none}
+  .steps li::before{counter-increment:step; content:counter(step);
+    position:absolute; left:0; top:8px; width:28px; height:28px; background:var(--accent2); color:#fff;
+    border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600}
+
+  .note{background:#22303f; border:1px solid #2d4a66; border-left:4px solid var(--accent);
+    padding:12px 16px; border-radius:8px; margin:14px 0; color:#cfe3f5}
+  .tag{display:inline-block; padding:1px 8px; border-radius:999px; font-size:12px; background:var(--chip);
+    border:1px solid var(--line); color:var(--muted); margin-left:6px}
+
+  footer{padding:30px 20px 50px; text-align:center; color:var(--muted); font-size:13px}
+  @media (max-width:640px){ header.hero h1{font-size:24px} h2{font-size:19px} }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>🎨 Canvas Photo Editor</h1>
+    <p>크롬/엣지 확장(MV3)으로 동작하는 <strong>포토샵 7 수준</strong>의 이미지 에디터 — 외부 라이브러리·빌드도구 0, 순수 HTML/CSS/JS + Canvas, 완전 오프라인</p>
+    <span class="badge">사용 매뉴얼 · v0.8 기준 (패널 도킹/플로팅 포함)</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <ul>
+      <li><a href="#intro">소개·설치</a></li>
+      <li><a href="#screen">화면 구성</a></li>
+      <li><a href="#tools">도구상자</a></li>
+      <li><a href="#layers">레이어</a></li>
+      <li><a href="#adjust">색보정·필터</a></li>
+      <li><a href="#select">선택·변형</a></li>
+      <li><a href="#vector">벡터·텍스트</a></li>
+      <li><a href="#auto">자동화·파일</a></li>
+      <li><a href="#panels">패널 도킹</a></li>
+      <li><a href="#keys">단축키</a></li>
+    </ul>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <!-- 소개 / 설치 -->
+  <section id="intro">
+    <h2><span class="num">1</span>소개 &amp; 설치</h2>
+    <p class="lead">Canvas Photo Editor는 브라우저 확장으로 설치해 새 탭에서 여는 사진 편집기입니다. 모든 처리는 로컬에서 이뤄지며 인터넷 연결이 필요 없습니다.</p>
+    <h3>압축해제 로드로 설치</h3>
+    <ol class="steps">
+      <li>크롬 주소창에 <kbd>chrome://extensions</kbd> 입력 (엣지는 <kbd>edge://extensions</kbd>)</li>
+      <li>우측 상단 <strong>개발자 모드</strong>를 켭니다</li>
+      <li><strong>압축해제된 확장 프로그램을 로드</strong> 버튼 클릭</li>
+      <li><code>manifest.json</code>이 있는 <code>canvas-photo-editor</code> 폴더 선택</li>
+      <li>툴바 퍼즐 아이콘에서 <strong>Canvas Photo Editor</strong>를 고정(pin) → 아이콘 클릭 시 새 탭에서 에디터가 열립니다</li>
+    </ol>
+    <div class="note">대상 OS: Windows 10/11 · 대상 브라우저: Chrome, Edge(Chromium). 코드를 수정한 뒤에는 확장 카드의 새로고침(↻)을 누르면 반영됩니다.</div>
+  </section>
+
+  <!-- 화면 구성 (스크린샷) -->
+  <section id="screen">
+    <h2><span class="num">2</span>화면 구성</h2>
+    <p class="lead">실제 실행 화면입니다. 크게 <strong>① 상단 메뉴바 · 옵션바</strong>, <strong>② 좌측 도구상자</strong>, <strong>③ 중앙 캔버스</strong>, <strong>④ 우측 패널 묶음</strong>으로 구성됩니다.</p>
+    <figure>
+      <img class="shot" alt="Canvas Photo Editor 전체 실행 화면" src="data:image/jpeg;base64,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">
+      <figcaption>실제 실행 화면 (1400×900). 좌측 도구상자 · 상단 메뉴/옵션바 · 중앙 캔버스 · 우측 패널(레이어·색상·견본·스타일 등)</figcaption>
+    </figure>
+    <div class="cards">
+      <div class="card"><h4>① 상단 메뉴/옵션바</h4><ul><li>파일·편집·이미지·레이어·선택·필터·보기 메뉴</li><li>현재 도구의 세부 옵션이 옵션바에 표시</li><li>좌측 ↶↷ 실행취소/다시실행 버튼</li></ul></div>
+      <div class="card"><h4>② 좌측 도구상자</h4><ul><li>선택·페인팅·리터칭·벡터·내비게이션 도구</li><li>하단 전경/배경 색상 스와치</li><li>일부 도구는 슬롯 순환(클릭 반복)</li></ul></div>
+      <div class="card"><h4>③ 중앙 캔버스</h4><ul><li>줌 5%~3200%, 스페이스 드래그로 팬</li><li>눈금자/그리드/가이드 표시 가능</li><li>마칭앤츠 선택 표시</li></ul></div>
+      <div class="card"><h4>④ 우측 패널</h4><ul><li>레이어·색상·견본·스타일·작업내역·채널·패스·문자·셰이프·브러시·액션·프리셋·파일브라우저</li><li>헤더 클릭=접기, 드래그=순서변경/플로팅(<a href="#panels">⑩ 참고</a>)</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 도구상자 -->
+  <section id="tools">
+    <h2><span class="num">3</span>도구상자</h2>
+    <p class="lead">좌측 도구상자의 도구들입니다. 괄호 안은 단축키이며, 같은 슬롯을 공유하는 도구는 단축키를 반복해 순환합니다.</p>
+    <div class="cards">
+      <div class="card"><h4>이동·선택</h4><ul>
+        <li><span class="k">V</span>이동</li>
+        <li><span class="k">M</span>선택 윤곽(사각/타원/단일 행·열 — 옵션바)</li>
+        <li><span class="k">L</span>올가미</li>
+        <li><span class="k">W</span>자동 선택(매직완드, 허용오차)</li>
+      </ul></div>
+      <div class="card"><h4>페인팅</h4><ul>
+        <li><span class="k">B</span>브러시(팁 5종·경도·불투명도·동역학)</li>
+        <li><span class="k">N</span>연필</li>
+        <li><span class="k">E</span>지우개</li>
+        <li><span class="k">G</span>페인트 버킷 / 그라디언트(슬롯 순환)</li>
+      </ul></div>
+      <div class="card"><h4>리터칭·복원</h4><ul>
+        <li><span class="k">S</span>복제 도장(Clone, Alt+클릭 소스)</li>
+        <li><span class="k">K</span>복구 브러시(Healing)</li>
+        <li><span class="k">C</span>패치(Patch)</li>
+        <li><span class="k">J</span>히스토리 브러시 / <span class="k">F</span>아트 히스토리</li>
+        <li><span class="k">Y</span>패턴 스탬프</li>
+      </ul></div>
+      <div class="card"><h4>보정 브러시</h4><ul>
+        <li><span class="k">O</span>닷지/번/스펀지(범위·노출)</li>
+        <li><span class="k">R</span>흐리게/선명/번짐(Smudge)</li>
+      </ul></div>
+      <div class="card"><h4>벡터·텍스트</h4><ul>
+        <li><span class="k">P</span>펜(베지어/자유곡선, 패스)</li>
+        <li><span class="k">U</span>도형(사각/타원/직선/다각형/둥근사각)</li>
+        <li><span class="k">A</span>셰이프 레이어(벡터 윤곽)</li>
+        <li><span class="k">T</span>텍스트(IME, 재편집 벡터 텍스트)</li>
+      </ul></div>
+      <div class="card"><h4>정보·내비게이션</h4><ul>
+        <li><span class="k">I</span>스포이드 → 색 샘플러 → 측정(슬롯 순환)</li>
+        <li>노트(주석) — 툴바 버튼</li>
+        <li><span class="k">H</span>손(팬) / <span class="k">Z</span>줌</li>
+        <li><span class="k">Q</span>퀵 마스크 모드</li>
+      </ul></div>
+    </div>
+  </section>
+
+  <!-- 레이어 -->
+  <section id="layers">
+    <h2><span class="num">4</span>레이어 <span class="tag">우측 레이어 패널</span></h2>
+    <p class="lead">레이어 1장은 분리된 캔버스이며, 위에서 아래로 합성됩니다.</p>
+    <div class="cards">
+      <div class="card"><h4>기본 조작</h4><ul><li>추가·표시/숨김·불투명도·순서 변경</li><li>복제·아래로 병합·보이는 레이어 병합(<kbd>Shift+Ctrl+E</kbd>)·평탄화</li><li>잠금(투명/이미지/위치)·칠 불투명도(Fill)</li></ul></div>
+      <div class="card"><h4>블렌드 모드</h4><ul><li>총 22종(네이티브 16 + 커스텀 6)</li><li>dissolve·linear burn/dodge·vivid/linear/pin light</li></ul></div>
+      <div class="card"><h4>마스크</h4><ul><li>레이어 마스크(그레이스케일, 브러시로 편집)</li><li>클리핑 마스크(<kbd>Ctrl+G</kbd>)</li><li>벡터 마스크(펜 패스 → 클립)</li></ul></div>
+      <div class="card"><h4>레이어 스타일 (10종)</h4><ul><li>Drop/Inner Shadow·Outer/Inner Glow</li><li>Bevel/Emboss·Satin·Stroke</li><li>Color/Gradient/Pattern Overlay</li><li>Styles 팔레트 프리셋 9종 일괄 적용</li></ul></div>
+      <div class="card"><h4>조정 레이어 (비파괴)</h4><ul><li>밝기/대비·색조/채도·레벨·커브</li><li>포스터화·한계값·반전·흑백</li><li>아래 레이어 전체 보정, 마스크로 강도 조절</li></ul></div>
+      <div class="card"><h4>특수 레이어</h4><ul><li>셰이프 레이어(채움+벡터 윤곽 재편집)</li><li>벡터 텍스트(글꼴/자간/행간 재편집)</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 색보정 / 필터 -->
+  <section id="adjust">
+    <h2><span class="num">5</span>색보정 &amp; 필터 <span class="tag">이미지 메뉴</span></h2>
+    <div class="cards">
+      <div class="card"><h4>색보정 (실시간 미리보기)</h4><ul>
+        <li>레벨(채널 RGB/R/G/B/알파 + 히스토그램)</li>
+        <li>커브(채널별 톤 곡선, Catmull-Rom)</li>
+        <li>밝기/대비·색조/채도·색상 균형</li>
+        <li>한계값·포스터화·그라디언트 맵·균일화·채널 혼합</li>
+        <li>자동 레벨·흑백·색 반전</li>
+      </ul></div>
+      <div class="card"><h4>필터</h4><ul>
+        <li>가우시안 블러(StackBlur)·모션 블러</li>
+        <li>샤픈·언샤프 마스크·하이 패스</li>
+        <li>노이즈·미디언·모자이크</li>
+        <li>엣지 찾기·세피아·엠보스</li>
+        <li>픽셀 유동화(Liquify) — 밀기/오목/볼록/소용돌이</li>
+      </ul></div>
+      <div class="card"><h4>이미지 모드</h4><ul>
+        <li>RGB ↔ 회색조(가중평균)</li>
+        <li>인덱스 색상(median-cut + 디더)</li>
+        <li>비트맵(1bit) · 색상표(Color Table)</li>
+        <li>전 레이어를 단일 실행취소로 변환</li>
+      </ul></div>
+      <div class="card"><h4>채널</h4><ul>
+        <li>R/G/B/알파 채널 격리 보기</li>
+        <li>채널 → 선택 영역 변환</li>
+        <li>불투명(알파) 영역을 선택으로</li>
+      </ul></div>
+    </div>
+  </section>
+
+  <!-- 선택 / 변형 -->
+  <section id="select">
+    <h2><span class="num">6</span>선택 &amp; 변형 <span class="tag">선택·편집 메뉴</span></h2>
+    <div class="cards">
+      <div class="card"><h4>선택 만들기</h4><ul><li>사각/타원/단일 행·열, 올가미, 자동 선택</li><li>색상 범위(스포이드+허용치)·확대(Grow)·유사(Similar)</li><li>모두 선택 <kbd>Ctrl+A</kbd> · 해제 <kbd>Ctrl+D</kbd></li></ul></div>
+      <div class="card"><h4>선택 다듬기</h4><ul><li>반전 <kbd>Shift+Ctrl+I</kbd> · 페더 <kbd>Alt+Ctrl+D</kbd></li><li>확장/축소/테두리/둥글리기</li><li>윤곽 그리기(Stroke, 폭·색·위치)</li><li>선택 저장/불러오기 · 퀵 마스크 <kbd>Q</kbd></li></ul></div>
+      <div class="card"><h4>변형</h4><ul><li>이미지 크기 · 캔버스 크기</li><li>90°/180° 회전 · 좌우/상하 뒤집기</li><li>선택 영역으로 자르기</li><li>자유 변형 <kbd>Ctrl+T</kbd>(Scale/Rotate/Skew/Distort/Perspective)</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 벡터 / 텍스트 -->
+  <section id="vector">
+    <h2><span class="num">7</span>벡터 · 텍스트 · 패스</h2>
+    <div class="cards">
+      <div class="card"><h4>펜 &amp; 패스</h4><ul><li>베지어 앵커/제어 핸들, 패스 닫기</li><li>표준/자유곡선 모드, Alt+앵커=코너↔곡선 전환</li><li>Paths 팔레트: 선택 변환·채우기·획</li></ul></div>
+      <div class="card"><h4>텍스트</h4><ul><li>클릭 입력(한글 IME), 재편집 가능한 벡터 텍스트</li><li>Character 팔레트: 글꼴·크기·색·자간·행간·굵게·기울임</li></ul></div>
+      <div class="card"><h4>셰이프</h4><ul><li>사각/타원/다각형(3~12)/둥근 사각</li><li>채우기·외곽선·선 두께, <kbd>Shift</kbd>로 정형</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 자동화 / 파일 -->
+  <section id="auto">
+    <h2><span class="num">8</span>자동화 &amp; 파일</h2>
+    <div class="cards">
+      <div class="card"><h4>자동화</h4><ul><li>액션(매크로): 작업 녹화·재생, 세트 관리</li><li>패턴 메이커: 타일 패턴 생성·저장</li><li>툴 프리셋: 도구 옵션 묶음 저장/적용</li></ul></div>
+      <div class="card"><h4>파일 입출력</h4><ul><li>열기: 파일 선택 · 드래그앤드롭 · 클립보드 붙여넣기</li><li>저장: PNG / JPG</li><li>Save for Web: 포맷·품질·미리보기·용량 추정</li></ul></div>
+      <div class="card"><h4>파일 브라우저</h4><ul><li>연 이미지 썸네일 자동 저장(IndexedDB)</li><li>최근 이미지 그리드(LRU 30개)</li><li>클릭 재열기 · 세션 간 영속</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 보기 -->
+  <section id="view">
+    <h2><span class="num">9</span>보기 &amp; 내비게이션</h2>
+    <div class="cards">
+      <div class="card"><h4>줌 · 팬</h4><ul><li>휠 줌 5%~3200%</li><li>스페이스 드래그 또는 손 도구로 팬</li><li>화면 맞춤 <kbd>Ctrl+0</kbd> · 실제 크기 <kbd>Ctrl+1</kbd></li></ul></div>
+      <div class="card"><h4>보조선</h4><ul><li>눈금자 <kbd>Ctrl+R</kbd></li><li>그리드 · 가이드(추가/지우기)</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 패널 도킹 -->
+  <section id="panels">
+    <h2><span class="num">10</span>패널 도킹 · 플로팅 <span class="tag">최신</span></h2>
+    <p class="lead">우측 패널들을 자유롭게 재배치할 수 있습니다.</p>
+    <div class="cards">
+      <div class="card"><h4>순서 변경</h4><ul><li>패널 헤더를 같은 도크 안에서 <strong>위/아래로 드래그</strong></li></ul></div>
+      <div class="card"><h4>플로팅 / 도크 이동</h4><ul><li>헤더를 <strong>캔버스나 가장자리로 드래그</strong> → 좌/우/하단 도크 이동 또는 자유 플로팅</li><li>플로팅 패널의 <strong>⤓</strong> 버튼으로 도크 복귀</li></ul></div>
+      <div class="card"><h4>크기 · 접기 · 저장</h4><ul><li>도크 경계 드래그로 너비/높이 조절</li><li>헤더 클릭으로 접기/펴기</li><li>모든 배치는 자동 저장(다음 실행에 복원)</li></ul></div>
+    </div>
+  </section>
+
+  <!-- 단축키 -->
+  <section id="keys">
+    <h2><span class="num">11</span>단축키 모음</h2>
+    <h3>도구</h3>
+    <table>
+      <tr><th>도구</th><th>키</th><th>도구</th><th>키</th></tr>
+      <tr><td>이동</td><td><kbd>V</kbd></td><td>펜</td><td><kbd>P</kbd></td></tr>
+      <tr><td>선택 윤곽</td><td><kbd>M</kbd></td><td>복제 도장</td><td><kbd>S</kbd></td></tr>
+      <tr><td>올가미</td><td><kbd>L</kbd></td><td>복구 브러시</td><td><kbd>K</kbd></td></tr>
+      <tr><td>자동 선택</td><td><kbd>W</kbd></td><td>패치</td><td><kbd>C</kbd></td></tr>
+      <tr><td>브러시</td><td><kbd>B</kbd></td><td>히스토리 브러시</td><td><kbd>J</kbd></td></tr>
+      <tr><td>연필</td><td><kbd>N</kbd></td><td>아트 히스토리</td><td><kbd>F</kbd></td></tr>
+      <tr><td>지우개</td><td><kbd>E</kbd></td><td>패턴 스탬프</td><td><kbd>Y</kbd></td></tr>
+      <tr><td>버킷/그라디언트</td><td><kbd>G</kbd></td><td>닷지/번/스펀지</td><td><kbd>O</kbd></td></tr>
+      <tr><td>스포이드/샘플러/측정</td><td><kbd>I</kbd></td><td>흐리게/선명/번짐</td><td><kbd>R</kbd></td></tr>
+      <tr><td>도형</td><td><kbd>U</kbd></td><td>셰이프 레이어</td><td><kbd>A</kbd></td></tr>
+      <tr><td>텍스트</td><td><kbd>T</kbd></td><td>퀵 마스크</td><td><kbd>Q</kbd></td></tr>
+      <tr><td>손(팬)</td><td><kbd>H</kbd> / <kbd>Space</kbd></td><td>줌</td><td><kbd>Z</kbd></td></tr>
+    </table>
+    <h3>편집 · 보기</h3>
+    <table>
+      <tr><th>동작</th><th>키</th><th>동작</th><th>키</th></tr>
+      <tr><td>실행 취소</td><td><kbd>Ctrl+Z</kbd></td><td>다시 실행</td><td><kbd>Ctrl+Shift+Z</kbd></td></tr>
+      <tr><td>새 문서</td><td><kbd>Ctrl+N</kbd></td><td>열기</td><td><kbd>Ctrl+O</kbd></td></tr>
+      <tr><td>PNG 저장</td><td><kbd>Ctrl+S</kbd></td><td>복사 / 붙여넣기</td><td><kbd>Ctrl+C</kbd> / <kbd>Ctrl+V</kbd></td></tr>
+      <tr><td>모두 선택</td><td><kbd>Ctrl+A</kbd></td><td>선택 해제</td><td><kbd>Ctrl+D</kbd></td></tr>
+      <tr><td>선택 반전</td><td><kbd>Shift+Ctrl+I</kbd></td><td>페더</td><td><kbd>Alt+Ctrl+D</kbd></td></tr>
+      <tr><td>선택 영역 삭제</td><td><kbd>Delete</kbd></td><td>보이는 레이어 병합</td><td><kbd>Shift+Ctrl+E</kbd></td></tr>
+      <tr><td>자유 변형</td><td><kbd>Ctrl+T</kbd></td><td>클리핑 마스크</td><td><kbd>Ctrl+G</kbd></td></tr>
+      <tr><td>화면 맞춤</td><td><kbd>Ctrl+0</kbd></td><td>실제 크기</td><td><kbd>Ctrl+1</kbd></td></tr>
+      <tr><td>확대 / 축소</td><td><kbd>Ctrl++</kbd> / <kbd>Ctrl+-</kbd> / 휠</td><td>눈금자</td><td><kbd>Ctrl+R</kbd></td></tr>
+      <tr><td>브러시 크기</td><td><kbd>[</kbd> <kbd>]</kbd></td><td>전경/배경 교환 · 기본색</td><td><kbd>X</kbd> · <kbd>D</kbd></td></tr>
+    </table>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    Canvas Photo Editor · 순수 HTML/CSS/JS + Canvas API · MV3 CSP 준수(eval·인라인·외부 CDN 0)<br>
+    이 매뉴얼은 단일 HTML 파일이며 스크린샷은 문서에 직접 임베드되어 오프라인에서도 그대로 열립니다.
+  </div>
+</footer>
+
+</body>
+</html>
