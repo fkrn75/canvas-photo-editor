@@ -2,6 +2,31 @@
 
 > 크롬 확장(MV3) 이미지 에디터 — 외부 라이브러리·빌드도구 없이 순수 HTML/CSS/JS + Canvas로 자체 구현.
 
+## v0.2.0 — 2026-06-14 (팀 오케스트라 iteration 1·2)
+
+> 팀 오케스트라(서브에이전트 병렬 구현 → 단일 writer 통합 → 브라우저 런타임 검증 → 커밋)로 진행. 전부 콘솔 에러 0 확인.
+
+### iteration 1 — 블렌드·보정·필터·선택
+- **블렌드 모드 22종**: 네이티브 16(globalCompositeOperation) + 커스텀 6 per-pixel(dissolve/linear-burn/linear-dodge/vivid-light/linear-light/pin-light) + 레이어 패널 드롭다운 + 보이는 레이어 병합(Shift+Ctrl+E)
+- **색보정 6종**: 색상 균형·한계값·포스터화·그라디언트 맵·균일화·채널 혼합 UI (실시간 미리보기 + undo)
+- **필터 6종**: 언샤프 마스크·모션 블러·미디언·모자이크·엣지 찾기·하이 패스
+- **선택 연산**: 반전(Shift+Ctrl+I)·페더(Alt+Ctrl+D)·Modify(확장/축소/테두리/둥글리기)
+
+### iteration 2 — 마스크·그라디언트·고급선택·뷰
+- **레이어 마스크**(그레이스케일, 페인팅 가능) + **클리핑 마스크**(Ctrl+G) + **Lock**(투명/이미지/위치) + **Fill Opacity**
+- **Gradient 도구**: 선형/방사형/각도/반사/다이아몬드 5종, 전경→배경·전경→투명, Reverse/Opacity, Shift 45°, 선택 클립. G 슬롯 버킷↔그라디언트 순환
+- **고급 선택**: 색상 범위(스포이드+허용치)·확대(Grow)·유사 영역(Similar)·선택 저장/불러오기
+- **보기**: 눈금자(Ctrl+R)·그리드·가이드(새 가이드·지우기)
+
+### 문서
+- `docs/photoshop7-feature-spec.md`: Photoshop 7.0 전수 기능명세서(/deep-research 기반, Adobe 1차 문서 교차검증)
+- `docs/implementation-checklist.md`: 구현 체크리스트(iteration 진행 상황 반영)
+
+### 알려진 한계 (후속)
+- 이미지 크기/자르기/회전/뒤집기 시 레이어 마스크 미동반(캔버스 크기 변경은 동기화). iteration 3에서 처리 예정.
+
+---
+
 ## v0.1.0 — 2026-06-14 (초기 구현)
 
 ### 기반 구조 (Phase 0)
