@@ -93,7 +93,12 @@ export class ToolManager {
 
   setTool(id) {
     if (!this.tools[id]) return;
-    if (this.active && this.active !== this.tools[id]) this.active.onDeactivate?.();
+    if (this.active && this.active !== this.tools[id]) {
+      // 드래그(포인터 다운) 도중 도구가 바뀌면 진행 중 작업을 안전 종료한다.
+      // 미완료 픽셀 편집을 취소해(undo 오염/미리보기 확정 방지) 다음 도구가 깨끗한 상태에서 시작하게 한다.
+      if (this._down) { this._down = false; this.app.history.cancelPixelEdit?.(); }
+      this.active.onDeactivate?.();
+    }
     this.activeId = id;
     this.active = this.tools[id];
     // state.set은 값이 같으면 이벤트를 생략하므로(초기 도구가 brush인 경우) 직접 설정 후 항상 발행한다.
@@ -132,7 +137,7 @@ export class ToolManager {
       if (e.button !== 0) return;
       c.setPointerCapture(e.pointerId);
       this._down = true;
-      this.active.onPointerDown(this._pt(e).world, e);
+      this.active?.onPointerDown(this._pt(e).world, e);
     });
 
     c.addEventListener("pointermove", (e) => {
@@ -144,7 +149,7 @@ export class ToolManager {
         this.app.viewport.pan(dx, dy);
         return;
       }
-      this.active.onPointerMove(world, e);
+      this.active?.onPointerMove(world, e);
     });
 
     const endPointer = (e) => {
@@ -155,7 +160,7 @@ export class ToolManager {
       }
       if (!this._down) return;
       this._down = false;
-      this.active.onPointerUp(this._pt(e).world, e);
+      this.active?.onPointerUp(this._pt(e).world, e);
     };
     c.addEventListener("pointerup", endPointer);
     c.addEventListener("pointercancel", endPointer);

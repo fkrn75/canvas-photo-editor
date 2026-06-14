@@ -128,6 +128,16 @@ export class ArtHistoryBrushTool extends BaseTool {
 
   onLeave() { this._hover = null; this.app.renderer.requestRender(); }
 
+  // 드래그 도중 도구가 바뀌면 ctx.save()/클립과 drawing 상태가 누수되므로 정리한다.
+  // (그리던 픽셀은 tool-manager가 cancelPixelEdit로 되돌린다)
+  onDeactivate() {
+    if (this.drawing) {
+      this.drawing = false;
+      if (this.ctx) { this.ctx.restore(); this.ctx = null; }
+      this.src = null; this.layer = null;
+    }
+  }
+
   // (cx,cy)에서 스냅샷 색을 샘플링해 짧은 곡선 스트로크를 그린다.
   // dirX,dirY: 진행 방향(없으면 무작위). 스타일에 따라 곡률/길이를 바꾼다.
   _spray(pos, dirX, dirY) {

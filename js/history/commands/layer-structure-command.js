@@ -3,6 +3,7 @@
 
 import { Layer } from "../../layers/layer.js";
 import { blendLayerOnto, buildEffectiveSource } from "../../engine/blend.js";
+import { composeAdjustment } from "../../layers/adjustment-layer.js";
 
 // 레이어 추가
 export class AddLayerCommand {
@@ -51,6 +52,13 @@ export class DuplicateLayerCommand {
       this.copy.lockImage = !!src.lockImage;
       this.copy.lockPosition = !!src.lockPosition;
       this.copy.styles = src.styles ? JSON.parse(JSON.stringify(src.styles)) : null;
+      // 특수 레이어 메타 승계: 조정 레이어(type/adjustmentType/params) · 셰이프/벡터텍스트 데이터.
+      // (래스터 픽셀은 위 drawImage로 이미 복사됨 → 메타까지 옮겨야 빈 레이어가 되지 않고 재편집도 보존)
+      this.copy.type = src.type || "pixel";
+      if (src.adjustmentType) this.copy.adjustmentType = src.adjustmentType;
+      if (src.adjustmentParams) this.copy.adjustmentParams = JSON.parse(JSON.stringify(src.adjustmentParams));
+      if (src.vectorShape) this.copy.vectorShape = JSON.parse(JSON.stringify(src.vectorShape));
+      if (src.vectorText) this.copy.vectorText = JSON.parse(JSON.stringify(src.vectorText));
       // 마스크 복사(있으면 그레이스케일 캔버스 통째 복제)
       if (src.mask) {
         const m = document.createElement("canvas");
@@ -92,16 +100,22 @@ export class MergeDownCommand {
     this.memoryBytes = lm.width * lm.height * 4;
   }
   redo() {
-    // 아래 레이어 캔버스 위에 위 레이어를 자신의 blendMode+불투명도로 합쳐 넣는다.
-    // 위 레이어의 마스크/채우기 불투명도를 알파에 반영한 "유효 소스"로 합성한다(없으면 원본).
-    // (blendLayerOnto는 ctx.canvas 크기를 문서 크기로 가정 → 레이어 캔버스가 곧 문서 크기이므로 OK)
-    const eff = buildEffectiveSource(this.upper);
-    if (eff) {
-      blendLayerOnto(this.lower.ctx, {
-        canvas: eff, blendMode: this.upper.blendMode, opacity: this.upper.opacity, visible: true,
-      });
+    if (this.upper.type === "adjustment") {
+      // 조정 레이어를 아래로 병합: 보정을 아래 레이어 픽셀에 직접 구워 넣는다.
+      // (조정 레이어는 빈 투명 캔버스라 일반 blend로는 효과가 사라짐)
+      composeAdjustment(this.lower.ctx, this.upper, this.lm.width, this.lm.height);
     } else {
-      blendLayerOnto(this.lower.ctx, this.upper);
+      // 아래 레이어 캔버스 위에 위 레이어를 자신의 blendMode+불투명도로 합쳐 넣는다.
+      // 위 레이어의 마스크/채우기 불투명도를 알파에 반영한 "유효 소스"로 합성한다(없으면 원본).
+      // (blendLayerOnto는 ctx.canvas 크기를 문서 크기로 가정 → 레이어 캔버스가 곧 문서 크기이므로 OK)
+      const eff = buildEffectiveSource(this.upper);
+      if (eff) {
+        blendLayerOnto(this.lower.ctx, {
+          canvas: eff, blendMode: this.upper.blendMode, opacity: this.upper.opacity, visible: true,
+        });
+      } else {
+        blendLayerOnto(this.lower.ctx, this.upper);
+      }
     }
     this.lower.ctx.globalAlpha = 1;
     this.lower.ctx.globalCompositeOperation = "source-over";

@@ -27,8 +27,9 @@ export class AddAdjustmentLayerCommand {
 export class AdjustmentParamsCommand {
   constructor(lm, id, before, after, label = null) {
     this.lm = lm; this.id = id;
-    this.before = before ? { ...before } : {};
-    this.after = after ? { ...after } : {};
+    // 레벨(채널별 중첩 객체)·커브([{x,y}] 배열) 파라미터가 외부와 참조 공유되지 않도록 깊은 복사
+    this.before = before ? JSON.parse(JSON.stringify(before)) : {};
+    this.after = after ? JSON.parse(JSON.stringify(after)) : {};
     this.memoryBytes = 0;
     const layer = lm.byId(id);
     this.label = label || `${adjustmentLabel(layer?.adjustmentType)} 보정 변경`;
@@ -36,7 +37,7 @@ export class AdjustmentParamsCommand {
   _set(params) {
     const layer = this.lm.byId(this.id);
     if (!layer) return;
-    layer.adjustmentParams = { ...params };
+    layer.adjustmentParams = JSON.parse(JSON.stringify(params));
     // 조정 레이어는 자체 썸네일이 보정 결과가 아니므로 thumbDirty 불필요하지만,
     // 합성 결과가 바뀌므로 재렌더는 필요 → notifyContent 로 재렌더+이벤트 발생.
     this.lm.notifyContent(this.id);

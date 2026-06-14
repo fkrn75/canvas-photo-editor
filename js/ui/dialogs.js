@@ -22,15 +22,18 @@ export class Dialogs {
     backdrop.querySelector(".dialog-body").appendChild(body);
     this.root.appendChild(backdrop);
 
-    const close = () => backdrop.remove();
+    // close는 모든 닫기 경로(확인/취소/Esc/Enter/백드롭)에서 호출되므로
+    // 여기서 keydown 리스너를 일괄 해제한다(마우스 클릭으로 닫을 때 핸들러가 잔류해
+    // Enter로 onOk가 다시 호출되던 누수/이중 실행 방지).
+    const close = () => { backdrop.remove(); window.removeEventListener("keydown", keyHandler, true); };
     const cancel = () => { onCancel?.(); close(); };
     backdrop.querySelector(".ok").addEventListener("click", () => { onOk?.(); close(); });
     backdrop.querySelector(".cancel").addEventListener("click", cancel);
     backdrop.addEventListener("mousedown", (e) => { if (e.target === backdrop) cancel(); });
     const keyHandler = (e) => {
       e.stopPropagation();
-      if (e.key === "Escape") { cancel(); window.removeEventListener("keydown", keyHandler, true); }
-      else if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") { onOk?.(); close(); window.removeEventListener("keydown", keyHandler, true); }
+      if (e.key === "Escape") { cancel(); }
+      else if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") { onOk?.(); close(); }
     };
     window.addEventListener("keydown", keyHandler, true);
     // 첫 입력에 포커스

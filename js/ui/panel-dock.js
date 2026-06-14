@@ -38,11 +38,13 @@ function resolveZone(x, y, mainEl, docks) {
 }
 
 // data-dock 속성으로 3개 도킹 컨테이너 참조(없으면 null)
+// .dock 클래스로 한정 — 스플리터 핸들도 같은 data-dock 값을 갖기 때문에(panel-splitter)
+// 속성 셀렉터만 쓰면 DOM 순서에 따라 핸들을 도크로 오인할 수 있다. 클래스 병용으로 충돌 차단.
 function getDocks(mainEl) {
   return {
-    right: mainEl.querySelector('[data-dock="right"]'),
-    left: mainEl.querySelector('[data-dock="left"]'),
-    bottom: mainEl.querySelector('[data-dock="bottom"]'),
+    right: mainEl.querySelector('.dock[data-dock="right"]'),
+    left: mainEl.querySelector('.dock[data-dock="left"]'),
+    bottom: mainEl.querySelector('.dock[data-dock="bottom"]'),
   };
 }
 function getFloatLayer() { return document.querySelector(".float-layer"); }

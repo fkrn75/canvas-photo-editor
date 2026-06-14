@@ -15,10 +15,24 @@ export class DocumentTransformCommand {
 
   // 현재 모든 레이어의 픽셀/속성 스냅샷
   _capture() {
-    return this.lm.layers.map((l) => ({
-      id: l.id, name: l.name, opacity: l.opacity, visible: l.visible,
-      w: l.width, h: l.height, data: l.snapshot(),
-    }));
+    return this.lm.layers.map((l) => {
+      // 픽셀 + 비파괴 속성(마스크/블렌드/조정 메타)을 함께 보관해 undo 시 유실되지 않게 한다.
+      const rec = {
+        id: l.id, name: l.name, opacity: l.opacity, visible: l.visible,
+        w: l.width, h: l.height, data: l.snapshot(),
+        maskEnabled: l.maskEnabled, maskActive: l.maskActive,
+        blendMode: l.blendMode, fillOpacity: l.fillOpacity, clipped: l.clipped,
+        type: l.type, adjustmentType: l.adjustmentType,
+        adjustmentParams: l.adjustmentParams ? JSON.parse(JSON.stringify(l.adjustmentParams)) : null,
+        mask: null, maskW: 0, maskH: 0,
+      };
+      if (l.mask) {
+        rec.maskW = l.mask.width; rec.maskH = l.mask.height;
+        const mc = l.maskCtx || l.mask.getContext("2d", { willReadFrequently: true });
+        rec.mask = mc.getImageData(0, 0, l.mask.width, l.mask.height);
+      }
+      return rec;
+    });
   }
 
   // 스냅샷으로 레이어들을 되돌린다 (캔버스 크기까지 복원)
@@ -35,6 +49,26 @@ export class DocumentTransformCommand {
       layer.opacity = s.opacity;
       layer.visible = s.visible;
       layer.name = s.name;
+      // 비파괴 속성 복원(보관된 경우에만)
+      if (s.blendMode !== undefined) layer.blendMode = s.blendMode;
+      if (s.fillOpacity !== undefined) layer.fillOpacity = s.fillOpacity;
+      if (s.clipped !== undefined) layer.clipped = s.clipped;
+      if (s.type !== undefined) layer.type = s.type;
+      if (s.adjustmentType !== undefined) layer.adjustmentType = s.adjustmentType;
+      if (s.adjustmentParams !== undefined) {
+        layer.adjustmentParams = s.adjustmentParams ? JSON.parse(JSON.stringify(s.adjustmentParams)) : null;
+      }
+      // 마스크 복원: 보관된 마스크가 있으면 새 캔버스로 재생성, 없으면 제거
+      if (s.mask) {
+        const m = document.createElement("canvas");
+        m.width = s.maskW; m.height = s.maskH;
+        m.getContext("2d", { willReadFrequently: true }).putImageData(s.mask, 0, 0);
+        layer.attachMask(m);
+        layer.maskEnabled = s.maskEnabled;
+        layer.maskActive = s.maskActive;
+      } else if (layer.mask) {
+        layer.removeMask();
+      }
       layer.thumbDirty = true;
     }
     this._notify();
