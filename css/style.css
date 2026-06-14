@@ -187,6 +187,7 @@ html, body {
   border-left: 1px solid var(--border);
   display: flex; flex-direction: column;
   min-height: 0;
+  overflow-y: auto;   /* 패널이 5개로 늘어 세로가 부족하면 우측 패널 자체 스크롤 */
 }
 .panel { display: flex; flex-direction: column; min-height: 0; }
 .panel-head {
@@ -195,7 +196,7 @@ html, body {
   background: var(--bg-panel-2);
   border-bottom: 1px solid var(--border);
 }
-#layers-panel { flex: 1; min-height: 0; }
+#layers-panel { flex: 1 1 auto; min-height: 140px; }
 
 /* 레이어 옵션(불투명도/혼합) */
 .layer-options { padding: 6px 10px; border-bottom: 1px solid var(--border); }
@@ -243,13 +244,15 @@ html, body {
 }
 .layer-toolbar button { flex: none; }
 
+/* 우측 패널 세로 배분: 색상 견본은 내용 높이 고정, 나머지는 균등 분배 + 최소 높이 */
+#swatches-panel { flex: none; }
 /* 히스토리 패널 */
-#history-panel { flex: 1; min-height: 0; border-bottom: 1px solid var(--border); }
-#paths-panel { flex: 1; min-height: 0; border-bottom: 1px solid var(--border); }
+#history-panel { flex: 1 1 auto; min-height: 140px; border-bottom: 1px solid var(--border); }
+#paths-panel { flex: 1 1 auto; min-height: 140px; overflow: hidden; border-bottom: 1px solid var(--border); }
 .path-row:hover { background: var(--bg-panel-2); }
 .path-row.active:hover { background: var(--accent); }
 .paths-toolbar button { flex: 1; min-width: 0; font-size: 11px; padding: 3px 4px; }
-#channels-panel { flex: none; max-height: 360px; overflow-y: auto; border-bottom: 1px solid var(--border); }
+#channels-panel { flex: 1 1 auto; min-height: 140px; overflow: hidden; border-bottom: 1px solid var(--border); }
 .layer-name.adjustment { font-style: italic; color: #9fd0ff; }
 .history-step:hover { background: var(--bg-panel-2); }
 .history-step.active:hover { background: var(--accent); }
