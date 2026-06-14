@@ -103,20 +103,27 @@ export class LayersPanel {
     this.el.querySelector(".merge").addEventListener("click", () => L.mergeDown());
     this.el.querySelector(".del").addEventListener("click", () => L.removeLayer());
 
-    // 레이어 옵션(모드/잠금/불투명도/채우기) 접기 토글 — 접으면 레이어 목록이 그만큼 넓어진다.
-    // 헤더의 ⚙ 버튼 클릭(패널 전체 접기와 구분: panel-collapse는 헤더 내 button 클릭을 무시한다).
-    const optToggle = this.el.querySelector(".opt-toggle");
-    const optBody = this.el.querySelector(".layer-options");
-    const OPT_KEY = "cpe.layerOptionsHidden";
-    if (localStorage.getItem(OPT_KEY) === "1") optBody.classList.add("hidden");
-    optToggle.classList.toggle("on", optBody.classList.contains("hidden"));
-    optToggle.addEventListener("click", () => {
-      const hidden = optBody.classList.toggle("hidden");
-      optToggle.classList.toggle("on", hidden);
-      try { localStorage.setItem(OPT_KEY, hidden ? "1" : "0"); } catch { /* 저장 실패 무시 */ }
-    });
+    // 레이어 옵션(모드/잠금/불투명/채우기) 표시 토글 — 숨기면 레이어 목록이 그만큼 넓어진다.
+    // ⚙ 버튼과 상단 [보기] 메뉴(menu-bar)가 공통으로 toggleLayerOptions()를 호출한다.
+    // (⚙는 <button>이라 panel-collapse의 "헤더 내 button 클릭 무시" 규칙으로 패널 전체 접기와 구분됨)
+    this._optBody = this.el.querySelector(".layer-options");
+    this._optToggle = this.el.querySelector(".opt-toggle");
+    if (localStorage.getItem("cpe.layerOptionsHidden") === "1") this._optBody.classList.add("hidden");
+    this._syncOptToggle();
+    this._optToggle.addEventListener("click", () => this.toggleLayerOptions());
 
     this._render();
+  }
+
+  // 레이어 옵션(모드/잠금/불투명/채우기) 표시/숨김 토글. ⚙ 버튼·[보기] 메뉴 공용, localStorage 영속.
+  toggleLayerOptions() {
+    const hidden = this._optBody.classList.toggle("hidden");
+    this._syncOptToggle();
+    try { localStorage.setItem("cpe.layerOptionsHidden", hidden ? "1" : "0"); } catch { /* 저장 실패 무시 */ }
+  }
+  // ⚙ 버튼 활성(숨김 상태) 표시를 현재 상태와 동기화.
+  _syncOptToggle() {
+    if (this._optToggle) this._optToggle.classList.toggle("on", this._optBody.classList.contains("hidden"));
   }
 
   // BLEND_MODES → <option> 문자열. sep 마커는 비활성 구분선 옵션으로 표시.

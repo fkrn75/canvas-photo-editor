@@ -171,6 +171,8 @@ export class MenuBar {
         { label: "가이드 표시", fn: () => a.toggleGuides() },
         { label: "새 가이드…", fn: () => this._newGuide() },
         { label: "가이드 지우기", fn: () => a.viewport.clearGuides() },
+        { sep: true },
+        { label: "레이어 옵션 표시/숨김", fn: () => a.layersPanel.toggleLayerOptions() },
       ]},
     ];
   }
