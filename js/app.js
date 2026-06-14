@@ -28,6 +28,11 @@ import { QuickMask } from "./selection/quick-mask.js";
 import { FreeTransform } from "./transform/free-transform.js";
 import { PathManager } from "./paths/path-manager.js";
 import { PathsPanel } from "./ui/paths-panel.js";
+import { ImageModeController } from "./engine/image-mode-controller.js";
+import { ActionsManager } from "./actions/actions-manager.js";
+import { ActionsPanel } from "./ui/actions-panel.js";
+import { CharacterPanel } from "./ui/character-panel.js";
+import { ShapePanel } from "./ui/shape-panel.js";
 
 class App {
   constructor() {
@@ -44,11 +49,13 @@ class App {
     this.history = new CommandManager(this);
     this.selection = new SelectionManager(this);
     this.paths = new PathManager(this);
+    this.actions = new ActionsManager(this);   // Actions(매크로) 녹화·재생
     this.quickMask = new QuickMask(this);   // 빠른 마스크 모드 (tools보다 먼저 생성)
     this.tools = new ToolManager(this, this.canvas);
     this.fileIO = new FileIO(this);
     this.clipboard = new Clipboard(this);
     this.dialogs = new Dialogs(this);
+    this.imageMode = new ImageModeController(this);   // 이미지 모드(회색조/인덱스/비트맵) 상태+변환
     this.freeTransform = new FreeTransform(this);   // 자유 변형(Ctrl+T)
 
     // UI 패널
@@ -60,6 +67,9 @@ class App {
     this.historyPanel = new HistoryPanel(this, document.getElementById("history-panel"));
     this.channelsPanel = new ChannelsPanel(this, document.getElementById("channels-panel"));
     this.pathsPanel = new PathsPanel(this, document.getElementById("paths-panel"));
+    this.characterPanel = new CharacterPanel(this, document.getElementById("character-panel"));
+    this.shapePanel = new ShapePanel(this, document.getElementById("shape-panel"));
+    this.actionsPanel = new ActionsPanel(this, document.getElementById("actions-panel"));
     this.menuBar = new MenuBar(this, document.getElementById("menubar"));
 
     this._bindStatus();

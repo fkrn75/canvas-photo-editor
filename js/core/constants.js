@@ -39,6 +39,9 @@ export const TOOL = {
   PEN: "pen",
   HISTORYBRUSH: "historybrush",
   PATTERNSTAMP: "patternstamp",
+  SHAPELAYER: "shapelayer",
+  HEALING: "healing",
+  PATCH: "patch",
 };
 
 // 도형 종류

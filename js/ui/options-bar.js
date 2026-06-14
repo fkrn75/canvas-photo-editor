@@ -74,6 +74,18 @@ export class OptionsBar {
         if (this.app.state.shapeType === "polygon") this._slider("변 수", "polygonSides", 3, 12, 1);
         if (this.app.state.shapeType === "rounded") this._slider("모서리", "cornerRadius", 0, 100, 1, "px");
         break;
+      case TOOL.SHAPELAYER:
+        this._select("종류", "shapeType", [
+          ["rect", "사각형"], ["ellipse", "타원"],
+          ["polygon", "다각형"], ["rounded", "둥근 사각형"],
+        ]);
+        this._checkbox("채우기", "shapeFill");
+        this._checkbox("외곽선", "shapeStroke");
+        this._slider("선 두께", "shapeStrokeWidth", 1, 100, 1, "px");
+        if (this.app.state.shapeType === "polygon") this._slider("변 수", "polygonSides", 3, 12, 1);
+        if (this.app.state.shapeType === "rounded") this._slider("모서리", "cornerRadius", 0, 100, 1, "px");
+        this._hint("드래그=셰이프 레이어 생성, 기존 셰이프 클릭=선택(셰이프 패널에서 색/획 재편집).");
+        break;
       case TOOL.ZOOM:
         this._hint("클릭=확대, Alt+클릭=축소, 드래그=영역 확대.");
         break;
@@ -138,6 +150,16 @@ export class OptionsBar {
         this._slider("크기", "brushSize", 1, 500, 1, "px");
         this._slider("경도", "brushHardness", 0, 1, 0.01, "%", 100);
         this._slider("강도", "retouchStrength", 0, 1, 0.01, "%", 100);
+        break;
+      case TOOL.HEALING:
+        this._slider("크기", "brushSize", 1, 500, 1, "px");
+        this._slider("경도", "brushHardness", 0, 1, 0.01, "%", 100);
+        this._slider("불투명도", "healOpacity", 0, 1, 0.01, "%", 100);
+        this._checkbox("정렬", "healAligned");
+        this._hint("Alt+클릭=소스 지정 후 드래그하여 복구(주변 톤에 맞춰 자연 블렌드).");
+        break;
+      case TOOL.PATCH:
+        this._hint("먼저 영역을 선택 → 선택 안을 잡고 깨끗한 영역으로 드래그하여 치환.");
         break;
       case TOOL.PEN:
         this._hint("클릭=앵커 추가, 드래그=곡선 핸들, 시작점 클릭=닫기, 앵커 클릭=삭제. 패스 패널에서 선택/채우기/획.");

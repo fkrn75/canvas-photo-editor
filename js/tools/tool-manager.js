@@ -20,6 +20,10 @@ import { BlurSharpenSmudgeTool } from "./blur-sharpen-smudge-tool.js";
 import { PenTool } from "./pen-tool.js";
 import { HistoryBrushTool } from "./history-brush-tool.js";
 import { PatternStampTool } from "./pattern-stamp-tool.js";
+import { TextToolV } from "../text/text-tool-v.js";
+import { ShapeLayerTool } from "../layers/shape-layer-tool.js";
+import { HealingBrushTool } from "./healing-brush-tool.js";
+import { PatchTool } from "./patch-tool.js";
 
 // 단일 키 도구 단축키 (g는 버킷↔그라디언트 슬롯 순환이라 아래 keydown에서 별도 처리)
 const KEYMAP = {
@@ -27,8 +31,9 @@ const KEYMAP = {
   b: TOOL.BRUSH, n: TOOL.PENCIL, e: TOOL.ERASER,
   i: TOOL.EYEDROPPER, u: TOOL.SHAPE, t: TOOL.TEXT, h: TOOL.HAND, z: TOOL.ZOOM,
   s: TOOL.CLONE, o: TOOL.DODGEBURN, r: TOOL.RETOUCH,
-  p: TOOL.PEN,
+  p: TOOL.PEN, a: TOOL.SHAPELAYER,
   j: TOOL.HISTORYBRUSH, y: TOOL.PATTERNSTAMP,
+  k: TOOL.HEALING, c: TOOL.PATCH,
 };
 
 function isTyping(e) {
@@ -60,7 +65,7 @@ export class ToolManager {
     this.tools[TOOL.EYEDROPPER] = new EyedropperTool(a, TOOL.EYEDROPPER);
     this.tools[TOOL.MOVE] = new MoveTool(a, TOOL.MOVE);
     this.tools[TOOL.SHAPE] = new ShapeTool(a, TOOL.SHAPE);
-    this.tools[TOOL.TEXT] = new TextTool(a, TOOL.TEXT);
+    this.tools[TOOL.TEXT] = new TextToolV(a, TOOL.TEXT);   // 재편집 가능 텍스트로 교체
     this.tools[TOOL.MARQUEE] = new MarqueeTool(a, TOOL.MARQUEE);
     this.tools[TOOL.LASSO] = new LassoTool(a, TOOL.LASSO);
     this.tools[TOOL.WAND] = new WandTool(a, TOOL.WAND);
@@ -72,6 +77,9 @@ export class ToolManager {
     this.tools[TOOL.PEN] = new PenTool(a, TOOL.PEN);
     this.tools[TOOL.HISTORYBRUSH] = new HistoryBrushTool(a, TOOL.HISTORYBRUSH);
     this.tools[TOOL.PATTERNSTAMP] = new PatternStampTool(a, TOOL.PATTERNSTAMP);
+    this.tools[TOOL.SHAPELAYER] = new ShapeLayerTool(a, TOOL.SHAPELAYER);
+    this.tools[TOOL.HEALING] = new HealingBrushTool(a, TOOL.HEALING);
+    this.tools[TOOL.PATCH] = new PatchTool(a, TOOL.PATCH);
   }
 
   setTool(id) {

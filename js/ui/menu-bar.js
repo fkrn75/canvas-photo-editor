@@ -11,6 +11,10 @@ import { openSaveForWeb } from "./save-for-web.js";
 import { openLayerStyle } from "./layer-style-dialog.js";
 import { ADJUSTMENT_TYPES } from "../layers/adjustment-layer.js";
 import { openAdjustmentLayerDialog } from "./adjustment-layer-dialog.js";
+import { convertGrayscale, convertRGB, openBitmapDialog, openIndexedDialog } from "./image-mode-dialog.js";
+import { openColorTable } from "./color-table-dialog.js";
+import { openPatternMaker } from "./pattern-maker-dialog.js";
+import { openLiquify } from "./liquify-dialog.js";
 
 export class MenuBar {
   constructor(app, el) {
@@ -68,6 +72,12 @@ export class MenuBar {
         { label: "선택 영역 삭제", shortcut: "Del", fn: () => a.deleteSelection() },
       ]},
       { title: "이미지", items: [
+        { label: "모드: 회색조", fn: () => convertGrayscale(a) },
+        { label: "모드: 인덱스 색상…", fn: () => openIndexedDialog(a) },
+        { label: "모드: 비트맵…", fn: () => openBitmapDialog(a) },
+        { label: "모드: RGB 색상", fn: () => convertRGB(a) },
+        { label: "색상표(Color Table)…", fn: () => openColorTable(a) },
+        { sep: true },
         { label: "이미지 크기…", fn: () => this._sizeDialog("이미지 크기", (w, h) => a.resizeImage(w, h)) },
         { label: "캔버스 크기…", fn: () => this._sizeDialog("캔버스 크기", (w, h) => a.resizeCanvas(w, h)) },
         { sep: true },
@@ -146,6 +156,9 @@ export class MenuBar {
         ], (img, v) => Filters.addNoise(img, v.a, true)) },
         { label: "세피아", fn: () => a.applyFilter("세피아", Filters.sepia) },
         { label: "엠보스", fn: () => a.applyFilter("엠보스", Filters.emboss) },
+        { sep: true },
+        { label: "픽셀 유동화…", fn: () => openLiquify(a) },
+        { label: "패턴 메이커…", fn: () => openPatternMaker(a) },
       ]},
       { title: "보기", items: [
         { label: "확대", shortcut: "Ctrl++", fn: () => a.viewport.setZoom(a.viewport.zoom * 1.25) },

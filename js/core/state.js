@@ -60,6 +60,13 @@ export class AppState {
     this.retouchMode = "blur";      // blur | sharpen | smudge
     this.retouchStrength = 0.5;     // 0~1
 
+    // 복구 브러시(healing-brush-tool.js)
+    this.healOpacity = 1;       // 0~1
+    this.healAligned = true;    // 정렬: stroke 간 소스 오프셋 유지
+
+    // 픽셀 유동화(liquify-dialog.js) — 마지막 사용 세기 기억
+    this.liquifyStrength = 0.5; // 0~1
+
     // 히스토리 브러시(history-brush-tool.js)
     this.historyBrushSource = 0;   // 복원 소스로 쓸 스냅샷 인덱스
 

@@ -253,6 +253,11 @@ html, body {
 .path-row.active:hover { background: var(--accent); }
 .paths-toolbar button { flex: 1; min-width: 0; font-size: 11px; padding: 3px 4px; }
 #channels-panel { flex: 1 1 auto; min-height: 140px; overflow: hidden; border-bottom: 1px solid var(--border); }
+#actions-panel { flex: 1 1 auto; min-height: 140px; overflow: hidden; border-bottom: 1px solid var(--border); }
+.actions-toolbar button { flex: 1; min-width: 0; font-size: 11px; padding: 3px 4px; }
+#character-panel, #shape-panel { flex: 0 0 auto; border-bottom: 1px solid var(--border); }
+#character-panel .char-body, #shape-panel .shape-body { font-size: 12px; }
+.char-body button.on, .shape-body button.on { background: var(--accent); color:#fff; border-color: var(--accent); }
 .layer-name.adjustment { font-style: italic; color: #9fd0ff; }
 .history-step:hover { background: var(--bg-panel-2); }
 .history-step.active:hover { background: var(--accent); }

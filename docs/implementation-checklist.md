@@ -62,7 +62,17 @@
 - [x] **채널 팔레트**: R/G/B/A 채널 보기·채널→선택 *(검증: R채널→선택 active 800×600)*
 - [x] **History Brush(J)**: 스냅샷 소스 복원 / **Pattern Stamp(Y)**: 패턴 타일 *(검증: 체커 Δ62, HB 전환)*
 
-**다음 분기점: 🟠 고급 잔여** — 벡터 마스크/셰이프 레이어 · 벡터 텍스트(재편집)+Character/Paragraph · Healing Brush/Patch · Liquify · Pattern Maker · Actions(매크로) · 이미지 모드 변환(Grayscale/Indexed) · 조정 레이어 레벨/커브 복합 UI. **다음 iteration에서 계속.**
+### iteration 6 완료 (🟠 고급 잔여 완결) — 전부 8124 런타임 검증, 콘솔 에러 0
+
+- [x] **벡터 텍스트 레이어(재편집)** + Character 팔레트(V): 텍스트 데이터 보존, T 다시 클릭 재편집(TextToolV 교체) *(검증: "가나다"→재편집→"라마바사")*
+- [x] **셰이프 레이어**(V, 단축키 A): 채움+벡터윤곽(사각/타원/다각형/둥근사각) 재편집, 셰이프 패널 *(검증: 드래그 생성+vectorShape 보존+초록 채움)*
+- [x] **벡터 마스크**(V): 펜 패스→그레이스케일 마스크 클립(비파괴)·편집·삭제
+- [x] **복구 브러시(Healing, K) / 패치(Patch, C)**(H): 질감유지 톤매칭 블렌드 / 선택영역 드래그 치환
+- [x] **픽셀 유동화(Liquify)**(H): 모달 밀기/오목/볼록/소용돌이 워핑
+- [x] **Pattern Maker / Actions(매크로)**(A): 타일 패턴 생성·저장 / 작업 녹화·재생 팔레트
+- [x] **이미지 모드 변환**(I): 회색조·인덱스(median-cut+디더)·비트맵(1bit)·RGB복귀 + Color Table *(검증: 회색[76,76,76]·인덱스순색·비트맵1bit)*
+
+**🟠 고급 잔여 완결(v0.6.0).** 남은 후속(선택): 조정레이어 레벨/커브 복합 UI · Inner Shadow/Bevel 등 레이어스타일 확장 · Art History Brush · Freeform/Convert Point 펜 · Brushes 동역학 팔레트 · Tool Presets/File Browser. (CMYK·16bit·ICC·인쇄·ImageReady 등은 🔴 제외 유지.)
 
 > ⚠️ 알려진 한계(후속): 이미지 크기/자르기/회전/뒤집기 시 레이어 마스크가 함께 변형되지 않음(캔버스 크기 변경은 동기화됨). 🟠 진입 전/후속 iteration에서 app.js 변형부에 마스크 동반 처리 예정.
 

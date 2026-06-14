@@ -35,7 +35,21 @@ export class MoveTool extends BaseTool {
     if (!this.moving) return;
     this.moving = false;
     this.snapshot = null;
+    // 벡터(텍스트/셰이프/마스크) 레이어면 소스 좌표도 같은 델타로 이동(재편집 일관성)
+    const L = this.layer;
+    let dx = Math.round(pt.x - this.start.x), dy = Math.round(pt.y - this.start.y);
+    if (e.shiftKey) { if (Math.abs(dx) > Math.abs(dy)) dy = 0; else dx = 0; }
+    if (L && (dx || dy)) {
+      if (L.vectorText) { L.vectorText.x += dx; L.vectorText.y += dy; }
+      if (L.vectorShape) this._shiftShape(L.vectorShape, dx, dy);
+    }
     this.history.commitPixelEdit(null, "이동"); // 레이어 전체 저장
     this.layer = null;
+  }
+  // 셰이프 기하 좌표 평행이동(벡터 레이어 전용)
+  _shiftShape(d, dx, dy) {
+    if (d.rect) { d.rect.x += dx; d.rect.y += dy; }
+    if (d.polygon) { d.polygon.cx += dx; d.polygon.cy += dy; }
+    if (d.path) for (const a of d.path.anchors) { a.x += dx; a.y += dy; a.inX += dx; a.inY += dy; a.outX += dx; a.outY += dy; }
   }
 }
