@@ -28,7 +28,7 @@ export class LayersPanel {
           <button class="lock-pos" title="위치 잠금">✛</button>
         </div>
         <div class="row">
-          <label>불투명도</label>
+          <label>불투명</label>
           <input type="range" class="op" min="0" max="100" value="100">
           <span class="val-badge op-val">100%</span>
         </div>
