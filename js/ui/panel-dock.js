@@ -17,6 +17,26 @@ const DEFAULT_DOCK = "right"; // 플로팅 복귀 시 기본 도킹처
 
 function clamp(v, min, max) { return v < min ? min : v > max ? max : v; }
 
+// 마우스가 "보이는"(폭·높이>0) 도킹 컨테이너 위에 있으면 그 도크 이름, 아니면 null.
+// 빈 도크(0폭/0높이)는 무시 — 그쪽은 computeZone의 가장자리 판정에 맡긴다.
+function dockAt(x, y, docks) {
+  for (const name of ["right", "left", "bottom"]) {
+    const el = docks[name];
+    if (!el) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return name;
+  }
+  return null;
+}
+
+// 드롭/표시 존 결정:
+//   · 마우스가 패널 도크 위면 → 그 도크(같은 도크면 순서변경, 다른 도크면 이동)
+//   · 도크 밖(캔버스 등)이면 → 화면 가장자리/플로팅(computeZone)
+// 이래야 우측 패널 안에서 헤더를 끌면 "순서변경"이 되고, 캔버스로 끌어내야 "플로팅"이 된다.
+function resolveZone(x, y, mainEl, docks) {
+  return dockAt(x, y, docks) || computeZone(x, y, mainEl.getBoundingClientRect());
+}
+
 // data-dock 속성으로 3개 도킹 컨테이너 참조(없으면 null)
 function getDocks(mainEl) {
   return {
@@ -106,7 +126,8 @@ function bindHeaderDrag(mainEl, docks, floatLayer) {
     if (!panel || isFloating(panel)) return; // 플로팅 패널은 panel-float이 이동 담당
     // 헤더 내 인터랙티브 요소는 드래그 시작 제외(클릭 동작 보존)
     if (e.target.closest("button, input, select, textarea, a, .opt-toggle")) return;
-    st = { panel, head, x0: e.clientX, y0: e.clientY, dragging: false };
+    st = { panel, head, x0: e.clientX, y0: e.clientY, dragging: false,
+           fromDock: panel.parentElement && panel.parentElement.getAttribute("data-dock") };
   });
 
   document.addEventListener("pointermove", (e) => {
@@ -116,9 +137,10 @@ function bindHeaderDrag(mainEl, docks, floatLayer) {
       st.dragging = true;
       st.panel.classList.add("dragging");
     }
-    const mainRect = mainEl.getBoundingClientRect();
-    const zone = computeZone(e.clientX, e.clientY, mainRect);
-    showZoneHint(zone, mainEl);
+    // 마우스가 도크 위면 그 도크(순서변경/이동), 아니면 가장자리/플로팅
+    const zone = resolveZone(e.clientX, e.clientY, mainEl, docks);
+    // 같은 도크 내 순서변경 중엔 도크 전체 하이라이트 생략(삽입선만 표시) — 이동/플로팅일 때만 존 강조
+    if (zone !== st.fromDock) showZoneHint(zone, mainEl); else clearZoneHints();
     markOrder(e, mainEl, docks, st.panel, zone);
   });
 
@@ -129,8 +151,7 @@ function bindHeaderDrag(mainEl, docks, floatLayer) {
       clearZoneHints();
       clearOrderMarks(mainEl, docks);
       if (!canceled) {
-        const mainRect = mainEl.getBoundingClientRect();
-        const zone = computeZone(e.clientX, e.clientY, mainRect);
+        const zone = resolveZone(e.clientX, e.clientY, mainEl, docks);
         applyDrop(st.panel, zone, e, mainEl, docks, floatLayer);
       }
       suppressNextClick(st.head); // 드래그 직후 click 억제(접기 오발 방지)
