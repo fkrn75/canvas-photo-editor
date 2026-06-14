@@ -1,0 +1,20 @@
+# OS
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.DS_Store
+
+# 에디터/IDE
+.vscode/
+.idea/
+*.swp
+
+# Node (향후 도구 추가 대비)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# 빌드 산출물 / 압축본
+dist/
+build/
+*.zip
