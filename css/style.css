@@ -261,6 +261,10 @@ html, body {
 
 /* 레이어 옵션(불투명도/혼합) */
 .layer-options { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+/* 레이어 옵션 접기: 접으면 레이어 목록이 그만큼 넓어진다 */
+.layer-options.hidden { display: none; }
+.opt-toggle { font-size: 12px; padding: 0 5px; line-height: 1.4; opacity: .65; }
+.opt-toggle.on { opacity: 1; color: var(--accent); }
 .layer-options .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .layer-options label { color: var(--text-dim); width: 56px; }
 

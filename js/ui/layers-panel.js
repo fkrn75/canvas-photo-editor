@@ -15,7 +15,7 @@ export class LayersPanel {
 
   _build() {
     this.el.innerHTML = `
-      <div class="panel-head">레이어</div>
+      <div class="panel-head">레이어<button class="opt-toggle" title="레이어 옵션(모드/잠금/불투명도/채우기) 접기/펴기">⚙</button></div>
       <div class="layer-options">
         <div class="row">
           <label>모드</label>
@@ -102,6 +102,19 @@ export class LayersPanel {
     this.el.querySelector(".down").addEventListener("click", () => L.moveLayer(undefined, -1));
     this.el.querySelector(".merge").addEventListener("click", () => L.mergeDown());
     this.el.querySelector(".del").addEventListener("click", () => L.removeLayer());
+
+    // 레이어 옵션(모드/잠금/불투명도/채우기) 접기 토글 — 접으면 레이어 목록이 그만큼 넓어진다.
+    // 헤더의 ⚙ 버튼 클릭(패널 전체 접기와 구분: panel-collapse는 헤더 내 button 클릭을 무시한다).
+    const optToggle = this.el.querySelector(".opt-toggle");
+    const optBody = this.el.querySelector(".layer-options");
+    const OPT_KEY = "cpe.layerOptionsHidden";
+    if (localStorage.getItem(OPT_KEY) === "1") optBody.classList.add("hidden");
+    optToggle.classList.toggle("on", optBody.classList.contains("hidden"));
+    optToggle.addEventListener("click", () => {
+      const hidden = optBody.classList.toggle("hidden");
+      optToggle.classList.toggle("on", hidden);
+      try { localStorage.setItem(OPT_KEY, hidden ? "1" : "0"); } catch { /* 저장 실패 무시 */ }
+    });
 
     this._render();
   }
