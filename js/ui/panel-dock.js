@@ -235,17 +235,19 @@ function persistOrder(container, dock) {
 // 비어 있으면 CSS 변수를 0으로(트랙 0폭/0높이 → 캔버스 안 가림) + 스플리터 숨김.
 // 채워지면 저장된 크기(없으면 기본값)로 트랙을 펼치고 스플리터를 보인다.
 function updateDockVisibility(docks, mainEl) {
-  for (const dock of ["left", "bottom"]) {
+  // 우측 도크도 포함: 우측 패널을 전부 좌/하단/플로팅으로 옮겨 비면 --right-w를 0으로(빈 공간 방지).
+  for (const dock of ["right", "left", "bottom"]) {
     const el = docks[dock];
     if (!el) continue;
     const empty = el.querySelectorAll(".panel").length === 0;
     el.classList.toggle("empty", empty);
-    const varName = dock === "bottom" ? "--bottom-h" : "--left-w";
+    const varName = dock === "bottom" ? "--bottom-h" : dock === "left" ? "--left-w" : "--right-w";
     if (empty) {
       document.documentElement.style.setProperty(varName, "0px");
     } else {
       const saved = getDockSize(dock);
-      const px = saved ? (saved.w != null ? saved.w : saved.h) : (dock === "bottom" ? 160 : 220);
+      const def = dock === "bottom" ? 160 : dock === "left" ? 220 : 240;  // 도크별 기본 크기
+      const px = saved ? (saved.w != null ? saved.w : saved.h) : def;
       document.documentElement.style.setProperty(varName, px + "px");
     }
     // 빈 도크엔 스플리터를 숨겨 캔버스 가장자리에 핸들이 떠 있지 않도록 한다.
