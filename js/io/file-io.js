@@ -1,5 +1,7 @@
 // file-io.js — 이미지 열기(파일 선택/드래그앤드롭)와 저장(PNG/JPG).
 
+import { EVT } from "../core/constants.js";
+
 export class FileIO {
   constructor(app) {
     this.app = app;
@@ -43,7 +45,7 @@ export class FileIO {
         // File Browser(IndexedDB)에 최근 이미지로 저장 + 패널 갱신 신호(워커F). 저장 실패는 무시.
         if (this.app.imageStore) {
           this.app.imageStore.putFromImage(img, file.name?.replace(/\.[^.]+$/, "") || "이미지")
-            .then(() => this.app.bus.emit("image:stored"))
+            .then(() => this.app.bus.emit(EVT.IMAGE_STORED))
             .catch(() => {});
         }
         resolve();

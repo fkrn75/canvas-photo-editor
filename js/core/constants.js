@@ -15,6 +15,7 @@ export const EVT = {
   RENDER_REQUEST: "render:request",        // 재합성 요청 (dirty)
   CURSOR_INFO: "cursor:info",              // 상태바 좌표 표시 {x, y}
   STATUS_MSG: "status:msg",                // 상태바 메시지 {text}
+  IMAGE_STORED: "image:stored",            // File Browser(IndexedDB)에 이미지 저장됨 — 패널 갱신 신호
 };
 
 // 도구 ID
