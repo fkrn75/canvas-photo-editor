@@ -241,11 +241,21 @@ html, body {
 .panel { display: flex; flex-direction: column; min-height: 0; }
 .panel-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 10px; font-weight: 600;
+  padding: 6px 10px 6px 22px; font-weight: 600;
   background: var(--bg-panel-2);
   border-bottom: 1px solid var(--border);
+  cursor: pointer; user-select: none; position: relative;
 }
-#layers-panel { flex: 1 1 auto; min-height: 140px; }
+/* 패널 접기 화살표(헤더 좌측, 절대배치라 헤더 flex 레이아웃에 영향 없음) */
+.panel-head::before {
+  content: "▾"; position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+  font-size: 10px; opacity: .55;
+}
+.panel.collapsed .panel-head::before { content: "▸"; }
+/* 접힌 패널: 헤더만 남기고 본문을 모두 숨긴다 */
+.panel.collapsed { flex: 0 0 auto !important; min-height: 0 !important; }
+.panel.collapsed > *:not(.panel-head) { display: none !important; }
+#layers-panel { flex: 2 1 auto; min-height: 300px; }
 #tool-presets-panel { flex: 0 0 auto; max-height: 240px; border-bottom: 1px solid var(--border); }
 #file-browser-panel { flex: 0 0 auto; max-height: 200px; border-bottom: 1px solid var(--border); }
 
@@ -255,7 +265,7 @@ html, body {
 .layer-options label { color: var(--text-dim); width: 56px; }
 
 /* 레이어 목록 */
-.layer-list { flex: 1; overflow-y: auto; padding: 4px; }
+.layer-list { flex: 1; overflow-y: auto; padding: 4px; min-height: 110px; }
 .layer-row {
   display: flex; align-items: center; gap: 8px;
   padding: 4px; margin-bottom: 2px;

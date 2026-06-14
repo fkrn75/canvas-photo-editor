@@ -39,6 +39,7 @@ import { ToolPresetsPanel } from "./ui/tool-presets-panel.js";
 import { FileBrowserPanel } from "./ui/file-browser-panel.js";
 import { NotesManager } from "./notes/notes-manager.js";
 import { NotesOverlay } from "./ui/notes-overlay.js";
+import { initPanelCollapse } from "./ui/panel-collapse.js";
 
 class App {
   constructor() {
@@ -83,6 +84,9 @@ class App {
     this.toolPresetsPanel = new ToolPresetsPanel(this, document.getElementById("tool-presets-panel"));
     this.notesOverlay = new NotesOverlay(this);   // 노트 마커+팝업 DOM 오버레이
     this.menuBar = new MenuBar(this, document.getElementById("menubar"));
+
+    // 우측 패널 접기/펴기 설치(각 패널 헤더 클릭으로 토글, localStorage 영속)
+    initPanelCollapse(document.querySelector(".rightpanel"));
 
     this._bindStatus();
     this._bindGlobalKeys();
