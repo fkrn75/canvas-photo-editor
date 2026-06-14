@@ -11,11 +11,21 @@
 | 단계 | 완료 | 부분 | 미구현 |
 |---|---|---|---|
 | 🟢 핵심(MVP) | 대부분 ✅ | Marquee/Shape/Text | Gradient, 줌도구 |
-| 🟡 중급 | — | 블렌드(Normal만) | 16개 항목 |
+| 🟡 중급 | **iteration 1 완료(블렌드·보정·필터·선택)** | — | 마스크·Gradient 등 |
 | 🟠 고급 | — | — | 20개+ 항목 |
 | 🔴 제외 | — | — | (의도적 스킵) |
 
-**다음 분기점 3종**: ① 블렌드 모드 24종 → ② 레이어 마스크 → ③ Gradient 도구. (자세한 권장 순서는 맨 아래 [작업 순서](#-추천-작업-순서) 참조)
+## ✅ iteration 1 완료 (2026-06-14, 팀 오케스트라 4워커 병렬 + 브라우저 검증)
+
+> 전부 실제 브라우저(8124) 런타임 검증 통과 — 콘솔 에러 0, 픽셀 단위 정확성·다이얼로그 오픈 확인.
+
+- [x] **블렌드 모드 22종** — 네이티브 16(`globalCompositeOperation`) + 커스텀 6(dissolve/linear-burn/linear-dodge/vivid-light/linear-light/pin-light), 레이어 패널 드롭다운(27항목), `setBlendMode` undo, 복제/Merge Down/flatten 블렌드 인식 *(검증: multiply `[128,0,0]`, linear-dodge `[255,128,128]`, pin-light `[255,1,1]`)*
+- [x] **보이는 레이어 병합 (Merge Visible, Shift+Ctrl+E)**
+- [x] **보정 6종** — Color Balance / Threshold / Posterize / Gradient Map / Equalize / **Channel Mixer UI**(엔진 기존, UI 신규). 전부 실시간 미리보기 + undo *(검증: threshold 200→255·50→0, 다이얼로그 10종 오픈 무에러)*
+- [x] **필터 6종** — Unsharp Mask / Motion Blur / Median / Mosaic / Find Edges / High Pass *(검증: findEdges end-to-end 픽셀 변화, 전 필터 실행 무에러)*
+- [x] **선택 연산** — 선택 반전(Shift+Ctrl+I) / 페더(Alt+Ctrl+D) / Modify(확장·축소·테두리·둥글리기) *(검증: 반전 in/out 토글, 페더 graded alpha `[252,51,163]`)*
+
+**다음 분기점 (iteration 2 후보)**: ① **레이어 마스크 → 클리핑 마스크** → ② **Gradient 도구** → ③ Lock/Fill Opacity, Quick Mask, Color Range, Grow/Similar. (자세한 권장 순서는 맨 아래 [작업 순서](#-추천-작업-순서) 참조)
 
 ---
 

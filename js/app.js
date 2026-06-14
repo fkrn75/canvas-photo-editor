@@ -153,6 +153,34 @@ class App {
     this.status("불투명 영역을 선택했습니다.");
   }
 
+  // ── 선택 영역 연산 (반전/페더/모디파이) ──
+  invertSelection() {
+    if (!this.selection.active) { this.status("선택 영역이 없습니다."); return; }
+    this.selection.invert();
+    this.status("선택 영역을 반전했습니다.");
+  }
+
+  featherSelection() {
+    if (!this.selection.active) { this.status("먼저 영역을 선택하세요."); return; }
+    this.dialogs.form("페더", [
+      { key: "r", label: "반경(px)", type: "number", value: 5, min: 1, max: 250 },
+    ], (v) => { this.selection.feather(v.r); this.status(`페더 ${v.r}px 적용`); }, "적용");
+  }
+
+  // kind: "expand" | "contract" | "border" | "smooth"
+  modifySelection(kind) {
+    if (!this.selection.active) { this.status("먼저 영역을 선택하세요."); return; }
+    const meta = {
+      expand:   { title: "선택 확장", label: "확장(px)", def: 4 },
+      contract: { title: "선택 축소", label: "축소(px)", def: 4 },
+      border:   { title: "테두리", label: "폭(px)", def: 6 },
+      smooth:   { title: "둥글리기", label: "반경(px)", def: 4 },
+    }[kind];
+    this.dialogs.form(meta.title, [
+      { key: "n", label: meta.label, type: "number", value: meta.def, min: 1, max: 250 },
+    ], (v) => { this.selection[kind](v.n); this.status(`${meta.title} ${v.n}px 적용`); }, "적용");
+  }
+
   deleteSelection() {
     const layer = this.layers.activeLayer;
     if (!layer) return;
@@ -379,7 +407,11 @@ class App {
         else if (k === "o") { e.preventDefault(); this.fileIO.openDialog(); }
         else if (k === "n") { e.preventDefault(); this.menuBar._newDoc(); }
         else if (k === "a") { e.preventDefault(); this.selectAll(); }
+        else if (k === "d" && e.altKey) { e.preventDefault(); this.featherSelection(); }
         else if (k === "d") { e.preventDefault(); this.deselect(); }
+        else if (k === "i" && e.shiftKey) { e.preventDefault(); this.invertSelection(); }
+        else if (k === "e" && e.shiftKey) { e.preventDefault(); this.layers.mergeVisible(); }
+        else if (k === "e") { e.preventDefault(); this.layers.mergeDown(); }
         else if (k === "c" && !typing) { e.preventDefault(); this.clipboard.copy(); }
         else if (k === "0") { e.preventDefault(); this.viewport.fit(this.layers.width, this.layers.height); }
         else if (k === "1") { e.preventDefault(); this.viewport.actualSize(this.layers.width, this.layers.height); }

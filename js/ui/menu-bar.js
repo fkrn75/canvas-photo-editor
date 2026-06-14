@@ -3,6 +3,8 @@
 import * as Adjust from "../engine/adjustments.js";
 import * as Filters from "../engine/filters.js";
 import { openLevels, openCurves } from "./channel-dialogs.js";
+import { openColorBalance, openThreshold, openPosterize, openGradientMap, openChannelMixer } from "./adjust-dialogs.js";
+import { openUnsharpMask, openMotionBlur, openMedian, openMosaic, openHighPass } from "./filter-dialogs.js";
 import { EVT } from "../core/constants.js";
 
 export class MenuBar {
@@ -36,7 +38,15 @@ export class MenuBar {
         { sep: true },
         { label: "모두 선택", shortcut: "Ctrl+A", fn: () => a.selectAll() },
         { label: "불투명 영역 선택", fn: () => a.selectOpaque() },
+        { label: "선택 반전", shortcut: "Shift+Ctrl+I", fn: () => a.invertSelection() },
         { label: "선택 해제", shortcut: "Ctrl+D", fn: () => a.deselect() },
+        { sep: true },
+        { label: "페더…", shortcut: "Alt+Ctrl+D", fn: () => a.featherSelection() },
+        { label: "선택 확장…", fn: () => a.modifySelection("expand") },
+        { label: "선택 축소…", fn: () => a.modifySelection("contract") },
+        { label: "테두리…", fn: () => a.modifySelection("border") },
+        { label: "둥글리기…", fn: () => a.modifySelection("smooth") },
+        { sep: true },
         { label: "선택 영역 삭제", shortcut: "Del", fn: () => a.deleteSelection() },
       ]},
       { title: "이미지", items: [
@@ -55,7 +65,8 @@ export class MenuBar {
       { title: "레이어", items: [
         { label: "새 레이어", fn: () => a.layers.addLayer({}) },
         { label: "레이어 복제", fn: () => a.layers.duplicateLayer() },
-        { label: "아래로 병합", fn: () => a.layers.mergeDown() },
+        { label: "아래로 병합", shortcut: "Ctrl+E", fn: () => a.layers.mergeDown() },
+        { label: "보이는 레이어 병합", shortcut: "Shift+Ctrl+E", fn: () => a.layers.mergeVisible() },
         { label: "이미지 평탄화", fn: () => a.flattenImage() },
         { sep: true },
         { label: "레이어 삭제", fn: () => a.layers.removeLayer() },
@@ -77,6 +88,14 @@ export class MenuBar {
         { label: "자동 레벨", fn: () => a.applyFilter("자동 레벨", Adjust.autoTone) },
         { label: "흑백", fn: () => a.applyFilter("흑백", Adjust.grayscale) },
         { label: "색 반전", fn: () => a.applyFilter("색 반전", Adjust.invert) },
+        { sep: true },
+        { label: "색상 균형…", fn: () => openColorBalance(a) },
+        { label: "채널 혼합…", fn: () => openChannelMixer(a) },
+        { label: "그라디언트 맵…", fn: () => openGradientMap(a) },
+        { sep: true },
+        { label: "한계값…", fn: () => openThreshold(a) },
+        { label: "포스터화…", fn: () => openPosterize(a) },
+        { label: "균일화", fn: () => a.applyFilter("균일화", Adjust.equalize) },
       ]},
       { title: "필터", items: [
         { label: "가우시안 블러…", fn: () => a.runAdjustment("가우시안 블러", [
@@ -85,10 +104,17 @@ export class MenuBar {
         { label: "샤픈…", fn: () => a.runAdjustment("샤픈", [
           { key: "a", label: "강도", min: 0, max: 300, step: 1, value: 80, scale: 0.01, suffix: "%" },
         ], (img, v) => Filters.sharpen(img, v.a / 100)) },
+        { label: "언샤프 마스크…", fn: () => openUnsharpMask(a) },
+        { label: "하이 패스…", fn: () => openHighPass(a) },
+        { sep: true },
+        { label: "모션 블러…", fn: () => openMotionBlur(a) },
+        { label: "미디언…", fn: () => openMedian(a) },
+        { label: "모자이크…", fn: () => openMosaic(a) },
+        { label: "엣지 찾기", fn: () => a.applyFilter("엣지 찾기", Filters.findEdges) },
+        { sep: true },
         { label: "노이즈 추가…", fn: () => a.runAdjustment("노이즈 추가", [
           { key: "a", label: "양", min: 1, max: 100, step: 1, value: 24 },
         ], (img, v) => Filters.addNoise(img, v.a, true)) },
-        { sep: true },
         { label: "세피아", fn: () => a.applyFilter("세피아", Filters.sepia) },
         { label: "엠보스", fn: () => a.applyFilter("엠보스", Filters.emboss) },
       ]},

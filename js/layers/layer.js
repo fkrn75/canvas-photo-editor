@@ -13,6 +13,7 @@ export class Layer {
     this.ctx = this.canvas.getContext("2d", { willReadFrequently: true });
     this.visible = true;
     this.opacity = 1;          // 0~1
+    this.blendMode = "normal"; // 블렌드 모드 id (blend.js의 BLEND_MODES 참조)
     this.thumbDirty = true;    // 썸네일 재생성 필요 여부
   }
 

@@ -2,6 +2,7 @@
 // 모두 { label, memoryBytes, redo(), undo() } 인터페이스를 따른다.
 
 import { Layer } from "../../layers/layer.js";
+import { blendLayerOnto } from "../../engine/blend.js";
 
 // 레이어 추가
 export class AddLayerCommand {
@@ -43,6 +44,7 @@ export class DuplicateLayerCommand {
       this.copy.ctx.drawImage(src.canvas, 0, 0);
       this.copy.opacity = src.opacity;
       this.copy.visible = src.visible;
+      this.copy.blendMode = src.blendMode || "normal";
     }
     this.index = lm.indexOf(srcId) + 1;
     this.memoryBytes = lm.width * lm.height * 4;
@@ -76,11 +78,11 @@ export class MergeDownCommand {
     this.memoryBytes = lm.width * lm.height * 4;
   }
   redo() {
-    // 아래 레이어 캔버스 위에 위 레이어를 자신의 불투명도로 그려 합친다.
-    const ctx = this.lower.ctx;
-    ctx.globalAlpha = this.upper.opacity;
-    ctx.drawImage(this.upper.canvas, 0, 0);
-    ctx.globalAlpha = 1;
+    // 아래 레이어 캔버스 위에 위 레이어를 자신의 blendMode+불투명도로 합쳐 넣는다.
+    // (blendLayerOnto는 ctx.canvas 크기를 문서 크기로 가정 → 레이어 캔버스가 곧 문서 크기이므로 OK)
+    blendLayerOnto(this.lower.ctx, this.upper);
+    this.lower.ctx.globalAlpha = 1;
+    this.lower.ctx.globalCompositeOperation = "source-over";
     this.lower.thumbDirty = true;
     const i = this.lm.indexOf(this.upper.id);
     if (i >= 0) this.lm._removeAt(i);
@@ -119,12 +121,65 @@ export class FlattenCommand {
   }
 }
 
-// 레이어 속성(visible/opacity/name) 변경
+// 보이는 레이어 병합: 보이는 레이어 전부를 블렌드 합성해 하나로 만들고
+// 가장 아래 보이는 레이어 위치에 끼워 넣는다. 숨긴 레이어는 그대로 보존.
+export class MergeVisibleCommand {
+  constructor(lm) {
+    this.lm = lm;
+    this.label = "보이는 레이어 병합";
+    this.before = lm.layers.slice();      // 이전 배열 전체 보관(undo)
+    this.beforeActive = lm.activeId;
+
+    // 보이는 레이어 합성 결과(블렌드 인식) — 문서 좌표계 캔버스로 합친다.
+    const out = document.createElement("canvas");
+    out.width = lm.width; out.height = lm.height;
+    lm._composeLayers(lm.layers.filter((l) => l.visible),
+                      out.getContext("2d", { willReadFrequently: true }));
+
+    this.merged = new Layer(lm.width, lm.height, "병합됨");
+    this.merged.ctx.drawImage(out, 0, 0);
+    // 병합 결과는 블렌드가 이미 적용됨 → normal/100%
+    this.merged.blendMode = "normal";
+    this.merged.opacity = 1;
+
+    // 가장 아래 보이는 레이어의 인덱스(그 자리에 결과를 넣는다)
+    this.insertIndex = lm.layers.findIndex((l) => l.visible);
+    if (this.insertIndex < 0) this.insertIndex = 0;
+
+    // redo 시 보존할 "숨긴 레이어"들과, 결과가 들어갈 최종 배열을 미리 구성
+    this.afterLayers = [];
+    let inserted = false;
+    for (let i = 0; i < lm.layers.length; i++) {
+      const l = lm.layers[i];
+      if (l.visible) {
+        if (!inserted) { this.afterLayers.push(this.merged); inserted = true; }
+        // 보이는 레이어는 결과로 대체되므로 버림
+      } else {
+        this.afterLayers.push(l); // 숨긴 레이어 보존
+      }
+    }
+    if (!inserted) this.afterLayers.push(this.merged); // 안전망
+
+    this.memoryBytes = lm.width * lm.height * 4;
+  }
+  redo() {
+    this.lm.layers = this.afterLayers.slice();
+    this.lm.activeId = this.merged.id;
+    this.lm.notifyStructure();
+  }
+  undo() {
+    this.lm.layers = this.before.slice();
+    this.lm.activeId = this.beforeActive;
+    this.lm.notifyStructure();
+  }
+}
+
+// 레이어 속성(visible/opacity/name/blendMode) 변경
 export class LayerPropCommand {
   constructor(lm, id, prop, oldVal, newVal) {
     this.lm = lm; this.id = id; this.prop = prop;
     this.oldVal = oldVal; this.newVal = newVal; this.memoryBytes = 0;
-    this.label = { visible: "레이어 표시 전환", opacity: "불투명도 변경", name: "레이어 이름 변경" }[prop] || "레이어 속성";
+    this.label = { visible: "레이어 표시 전환", opacity: "불투명도 변경", name: "레이어 이름 변경", blendMode: "블렌드 모드 변경" }[prop] || "레이어 속성";
   }
   _set(v) {
     const layer = this.lm.byId(this.id);

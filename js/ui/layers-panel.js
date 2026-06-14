@@ -1,6 +1,7 @@
 // layers-panel.js — 레이어 목록(맨 위 레이어가 위에 표시), 불투명도, 표시 토글, 추가/복제/이동/병합/삭제, 썸네일.
 
 import { EVT } from "../core/constants.js";
+import { BLEND_MODES } from "../engine/blend.js";
 
 export class LayersPanel {
   constructor(app, el) {
@@ -15,6 +16,10 @@ export class LayersPanel {
     this.el.innerHTML = `
       <div class="panel-head">레이어</div>
       <div class="layer-options">
+        <div class="row">
+          <label>모드</label>
+          <select class="blend">${this._blendOptionsHtml()}</select>
+        </div>
         <div class="row">
           <label>불투명도</label>
           <input type="range" class="op" min="0" max="100" value="100">
@@ -32,8 +37,14 @@ export class LayersPanel {
       </div>`;
 
     this.list = this.el.querySelector(".layer-list");
+    this.blendSel = this.el.querySelector(".blend");
     this.opSlider = this.el.querySelector(".op");
     this.opVal = this.el.querySelector(".op-val");
+
+    this.blendSel.addEventListener("change", (e) => {
+      const id = this.app.layers.activeId;
+      if (id != null) this.app.layers.setBlendMode(id, e.target.value);
+    });
 
     this.opSlider.addEventListener("input", (e) => {
       const v = +e.target.value / 100;
@@ -55,12 +66,26 @@ export class LayersPanel {
     this._render();
   }
 
+  // BLEND_MODES → <option> 문자열. sep 마커는 비활성 구분선 옵션으로 표시.
+  // (라벨은 코드 내 고정 상수이므로 XSS 위험 없음)
+  _blendOptionsHtml() {
+    return BLEND_MODES.map((m) =>
+      m.sep
+        ? `<option disabled>──────────</option>`
+        : `<option value="${m.id}">${m.label}</option>`
+    ).join("");
+  }
+
   _render() {
     const lm = this.app.layers;
     const act = lm.activeLayer;
     if (act) {
       this.opSlider.value = Math.round(act.opacity * 100);
       this.opVal.textContent = Math.round(act.opacity * 100) + "%";
+      this.blendSel.value = act.blendMode || "normal";
+      this.blendSel.disabled = false;
+    } else {
+      this.blendSel.disabled = true;
     }
 
     this.list.innerHTML = "";

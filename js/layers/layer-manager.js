@@ -4,9 +4,11 @@
 
 import { EVT } from "../core/constants.js";
 import { Layer } from "./layer.js";
+import { blendLayerOnto, normalizeBlendMode } from "../engine/blend.js";
 import {
   AddLayerCommand, RemoveLayerCommand, MoveLayerCommand,
   MergeDownCommand, DuplicateLayerCommand, LayerPropCommand,
+  MergeVisibleCommand,
 } from "../history/commands/layer-structure-command.js";
 
 export class LayerManager {
@@ -104,6 +106,13 @@ export class LayerManager {
     this.app.history.execute(new MergeDownCommand(this, id));
   }
 
+  // 보이는 레이어를 블렌드 합성해 하나로 만든다 (Merge Visible / Shift+Ctrl+E)
+  mergeVisible() {
+    const visibleCount = this.layers.filter((l) => l.visible).length;
+    if (visibleCount <= 1) { this.app.status("병합할 보이는 레이어가 2장 이상 필요합니다."); return; }
+    this.app.history.execute(new MergeVisibleCommand(this));
+  }
+
   setOpacity(id, opacity, { commit = true } = {}) {
     const layer = this.byId(id);
     if (!layer) return;
@@ -118,6 +127,16 @@ export class LayerManager {
     }
   }
 
+  // 블렌드 모드 변경 (현재값과 같으면 무시, 다르면 undo 지원)
+  setBlendMode(id, mode) {
+    const layer = this.byId(id);
+    if (!layer) return;
+    mode = normalizeBlendMode(mode);
+    const cur = normalizeBlendMode(layer.blendMode || "normal");
+    if (cur === mode) return;
+    this.app.history.execute(new LayerPropCommand(this, id, "blendMode", cur, mode));
+  }
+
   toggleVisible(id) {
     const layer = this.byId(id);
     if (!layer) return;
@@ -130,22 +149,64 @@ export class LayerManager {
     this.app.history.execute(new LayerPropCommand(this, id, "name", layer.name, name));
   }
 
-  // ── 합성 ── ctx(표시/내보내기용)에 보이는 레이어를 아래→위 순서로 그린다.
-  compositeTo(ctx) {
-    for (const layer of this.layers) {
-      if (!layer.visible || layer.opacity <= 0) continue;
-      ctx.globalAlpha = layer.opacity;
-      ctx.drawImage(layer.canvas, 0, 0);
+  // 문서 크기 오프스크린 합성 캔버스(재사용). per-pixel 블렌드 정확성을 위해 문서 좌표계 필수.
+  _ensureScratch() {
+    let s = this._scratch;
+    if (!s) {
+      s = this._scratch = document.createElement("canvas");
+      this._scratchCtx = s.getContext("2d", { willReadFrequently: true });
     }
+    if (s.width !== this.width || s.height !== this.height) {
+      s.width = this.width;
+      s.height = this.height;
+    }
+    const ctx = this._scratchCtx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+    ctx.clearRect(0, 0, this.width, this.height);
+    return ctx;
   }
 
-  // 모든 레이어를 평탄화한 단일 캔버스를 만든다 (내보내기/병합용)
+  // 주어진 레이어 목록을 블렌드 인식 방식으로 "문서 좌표계" 캔버스에 합성한다.
+  // out 캔버스를 받으면 거기에, 없으면 내부 scratch에 그려 그 ctx를 반환한다.
+  // (per-pixel 모드는 backdrop을 읽어야 하므로 반드시 1:1 문서 좌표계에서 수행)
+  _composeLayers(layers, outCtx = null) {
+    let ctx;
+    if (outCtx) {
+      ctx = outCtx;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = "source-over";
+      ctx.clearRect(0, 0, this.width, this.height);
+    } else {
+      ctx = this._ensureScratch();
+    }
+    for (const layer of layers) {
+      if (!layer.visible || (layer.opacity ?? 1) <= 0) continue;
+      blendLayerOnto(ctx, layer);
+    }
+    // 합성 후 상태 원복(호출자 안전)
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+    return ctx;
+  }
+
+  // ── 합성 ── ctx(표시/내보내기용)에 보이는 레이어를 블렌드 인식으로 그린다.
+  // renderer가 전달하는 ctx는 변환(translate/scale)이 걸려 있을 수 있으므로,
+  // 항상 문서 좌표계 scratch에 합성한 뒤 결과를 한 번에 (0,0)로 그린다.
+  compositeTo(ctx) {
+    if (!this.width || !this.height) return;
+    this._composeLayers(this.layers); // scratch에 합성
+    ctx.drawImage(this._scratch, 0, 0);
+  }
+
+  // 모든 레이어를 평탄화한 단일 캔버스를 만든다 (내보내기/병합용) — 블렌드 인식
   flatten() {
     const out = document.createElement("canvas");
     out.width = this.width;
     out.height = this.height;
-    this.compositeTo(out.getContext("2d"));
+    this._composeLayers(this.layers, out.getContext("2d", { willReadFrequently: true }));
     return out;
   }
 
