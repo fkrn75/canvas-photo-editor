@@ -116,6 +116,17 @@ export class TextToolV extends BaseTool {
       const selO = window.getSelection(); selO.removeAllRanges(); selO.addRange(r);
     }, 0);
 
+    // IME(한글) 조합 상태 추적. 조합 중에 el.style.font 등을 교체하면 조합이 끊겨
+    // 자모가 분리 확정되므로, 조합 중 들어온 스타일 변경은 미뤘다가 compositionend 후 반영한다.
+    this._composing = false;
+    this._pendingStyle = false;
+    el.addEventListener("compositionstart", () => { this._composing = true; });
+    el.addEventListener("compositionend", () => {
+      this._composing = false;
+      // 조합 중 보류된 스타일 변경이 있으면 지금 반영(이제 조합이 끝나 안전).
+      if (this._pendingStyle) { this._pendingStyle = false; this._applyStyleToEditor(); }
+    });
+
     el.addEventListener("keydown", (ev) => {
       ev.stopPropagation(); // 도구 단축키와 충돌 방지
       if (ev.key === "Escape") { ev.preventDefault(); this._cancel(); }
@@ -131,7 +142,15 @@ export class TextToolV extends BaseTool {
   }
 
   // Character 팔레트에서 폰트/크기/색 등을 바꾸면 호출됨(편집 중 라이브 반영).
+  // IME 조합 중에는 스타일 교체가 조합을 끊으므로(자모 분리 확정) 보류 플래그만 세우고,
+  // compositionend 후에 실제로 반영한다. (데이터 자체는 호출측에서 이미 갱신됨)
   _onLiveDataChange() {
+    if (this._composing) { this._pendingStyle = true; return; }
+    this._applyStyleToEditor();
+  }
+
+  // 현재 vectorText 데이터를 편집 오버레이(el)의 인라인 스타일에 실제로 반영한다.
+  _applyStyleToEditor() {
     const el = this.editor;
     const d = this.layer?.vectorText;
     if (!el || !d) return;

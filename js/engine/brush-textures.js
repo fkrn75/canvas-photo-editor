@@ -203,7 +203,11 @@ export function buildTexture(type, scale, depth, seed = 1) {
   const size = Math.round(16 + clamp01(scale) * 112); // 16~128
   const dep = clamp01(depth);
   // 깊이는 캐시 키에 정수 단계(0~20)로만 반영(미세 변화로 캐시 폭증 방지)
-  const key = `${t}|${size}|${Math.round(dep * 20)}|${seed}`;
+  // canvas(weave)는 시드를 안 쓰는 결정적 사인파 격자 → 출력이 seed에 무관하다.
+  //   그런데 키에 seed를 넣으면 같은 무늬가 seed별로 중복 캐시되어 32칸 예산을 낭비한다(점검 #P3).
+  //   weave만 키에서 seed를 빼 중복을 없앤다(출력 불변). 나머지 타입은 seed가 무늬에 반영되므로 키에 유지.
+  const seedKey = (t === "canvas") ? "-" : seed;
+  const key = `${t}|${size}|${Math.round(dep * 20)}|${seedKey}`;
   const hit = _cache.get(key);
   if (hit) return { tile: hit, size };
 

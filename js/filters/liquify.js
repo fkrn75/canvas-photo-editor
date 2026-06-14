@@ -81,6 +81,12 @@ export class LiquifyMesh {
         switch (mode) {
           case LIQUIFY_MODE.FORWARD:
             // 픽셀을 이동 방향으로 민다 → 결과는 원본의 반대쪽에서 샘플.
+            // [강도 적용 횟수] strength는 여기서 "한 번"만 곱한다(× fall × strength).
+            //   pucker/bloat: (strength*0.5=radialAmt) × dist × fall  → strength 1회
+            //   twirl       : (strength*0.6=twirlAng) × fall          → strength 1회
+            //   forward     : mdx × fall × strength                   → strength 1회 (동일)
+            // 즉 정적분석이 지적한 "strength 이중 적용"은 오탐이며, 네 모드의 강도 적용
+            // 횟수는 일관된다. 변위는 mdx(직전→현재 이동량)에 비례하는 표준 forward warp.
             ax = -mdx * fall * strength;
             ay = -mdy * fall * strength;
             break;

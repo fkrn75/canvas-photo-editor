@@ -33,6 +33,14 @@ export class ShapeTool extends BaseTool {
     this.drawing = false;
     this.end = pt;
     const r = this._rect();
+
+    // 실제로 그려질 게 있는지 판정. 직선은 항상 그려지고(채우기/테두리 플래그 무관),
+    // 나머지 도형은 채우기·테두리가 모두 꺼져 있으면 아무것도 안 그려진다.
+    // 아무것도 안 그릴 거면 빈 undo 스텝이 생기지 않도록 커밋 자체를 건너뛴다.
+    const willPaint = this.state.shapeType === SHAPE.LINE
+      || this.state.shapeFill || this.state.shapeStroke;
+    if (!willPaint) { this.layer = null; return; }
+
     const ctx = this.layer.ctx;
     this.history.beginPixelEdit(this.layer);
     ctx.save();

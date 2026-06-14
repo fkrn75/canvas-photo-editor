@@ -77,7 +77,18 @@ export function setPanelPlace(panelId, place) {
     delete layout.panels[panelId];
   } else if (isObject(place)) {
     // 기존 배치 위에 얕은 병합(전달된 키만 덮어씀).
-    layout.panels[panelId] = { ...(layout.panels[panelId] || {}), ...place };
+    const merged = { ...(layout.panels[panelId] || {}), ...place };
+    // 모드 전환 시 반대 모드의 잔여(stale) 키를 정리(점검 #P3).
+    //   · dock으로 복귀 → 더는 의미 없는 float 좌표 키 제거(이전엔 JSON에 남아 cruft).
+    //   · float으로 전환 → dock 전용 키(dock/order) 제거.
+    // 모든 호출부가 place.place를 항상 명시하므로(panel-dock/panel-float) 이 분기는 안전하다.
+    if (place.place === "dock") {
+      delete merged.float;
+    } else if (place.place === "float") {
+      delete merged.dock;
+      delete merged.order;
+    }
+    layout.panels[panelId] = merged;
   }
   saveLayout(layout);
   return layout;

@@ -41,6 +41,10 @@ const SHG = [
 export function stackBlur(imageData, radius) {
   radius = Math.round(radius);
   if (radius < 1) return imageData;
+  // 방어 가드: MUL/SHG 룩업테이블은 인덱스 0~254까지만 유효하다.
+  // radius가 이를 넘으면 MUL[radius]=undefined → NaN → 화면 전체 검정이 된다.
+  // (현재 UI 슬라이더 상한은 100이라 도달 불가지만 무회귀 안전망으로 클램프)
+  if (radius > 254) radius = 254;
   const px = imageData.data;
   const w = imageData.width, h = imageData.height;
   const div = radius + radius + 1;

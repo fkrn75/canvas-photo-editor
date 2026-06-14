@@ -117,9 +117,23 @@ export function levels(img, channel, inB, inW, gamma, outB, outW) {
 
 // 제어점(각 {x,y} 0~255) → 256 LUT. Catmull-Rom 스플라인으로 부드럽게.
 export function buildCurveLUT(points) {
+  const lut = new Uint8ClampedArray(256);
+  // 방어 가드: 제어점이 없거나(0개) 1개뿐이면 스플라인 계산이 pts[0]/pts[n-1]을
+  // 역참조하다 TypeError가 난다(정상흐름은 normalizeCurvesParams가 n>=2를 보장하지만
+  // 임포트/마이그레이션·직접 호출 등 비정상 입력 대비).
+  if (!Array.isArray(points) || points.length === 0) {
+    // 제어점 없음 → 항등 LUT(입력=출력)
+    for (let i = 0; i < 256; i++) lut[i] = i;
+    return lut;
+  }
+  if (points.length === 1) {
+    // 제어점 1개 → 전 구간을 그 점의 y로 채움(상수)
+    const y = points[0].y;
+    for (let i = 0; i < 256; i++) lut[i] = y;
+    return lut;
+  }
   const pts = points.slice().sort((a, b) => a.x - b.x);
   const n = pts.length;
-  const lut = new Uint8ClampedArray(256);
   // 제어점이 2개면 직선 보간(불필요한 곡률 방지)
   if (n === 2) {
     const a = pts[0], b = pts[1];

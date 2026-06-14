@@ -53,15 +53,27 @@ export class ImageStore {
   }
 
   // 트랜잭션 헬퍼. mode: "readonly" | "readwrite"
+  // fn(store)는 IDBRequest, Promise, 또는 아무것도 반환할 수 있다. 어느 쪽이든
+  // 해석된 "데이터 값"으로 통일해 resolve한다(점검 #P3: IDBRequest vs Promise 반환 불일치 정리).
+  //   - Promise(또는 일반 값) → 그대로 데이터로 사용(get/list/_enforceLimit 경로).
+  //   - IDBRequest          → request.result 로 풀어 데이터만 노출(put/delete/clear 경로).
+  //     (기존엔 IDBRequest 객체 자체가 resolve돼 새어나갔다 — 호출부는 무시했지만 계약이 불일치.)
+  // 실제 완료/실패 판정은 항상 트랜잭션 이벤트(oncomplete/onerror/onabort)가 담당한다(기존과 동일).
   async _tx(mode, fn) {
     const db = await this._open();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, mode);
       const store = tx.objectStore(STORE);
       let result;
-      Promise.resolve(fn(store))
-        .then((r) => { result = r; })
-        .catch(reject);
+      const ret = fn(store);
+      if (ret instanceof IDBRequest) {
+        // IDBRequest는 thenable이 아니므로 success에서 결과만 회수(에러는 tx.onerror가 처리).
+        ret.onsuccess = () => { result = ret.result; };
+      } else {
+        Promise.resolve(ret)
+          .then((r) => { result = r; })
+          .catch(reject);
+      }
       tx.oncomplete = () => resolve(result);
       tx.onerror = () => reject(tx.error || new Error("트랜잭션 실패"));
       tx.onabort = () => reject(tx.error || new Error("트랜잭션 중단"));

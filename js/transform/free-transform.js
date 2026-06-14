@@ -420,6 +420,8 @@ export class FreeTransform {
   }
 
   // 점(월드)이 사각형(평행/사다리꼴 모두) 내부인지 — 네 변에 대한 부호 일관성 검사.
+  // 퇴화(면적 0: 네 점이 한 점/한 직선) 사각형이면 모든 외적이 0이라 sign이 한 번도
+  // 정해지지 않는다. 그 경우 "내부"가 존재할 수 없으므로 false를 반환한다(예전엔 true 오반환).
   _pointInQuad(p, quad) {
     let sign = 0;
     for (let i = 0; i < 4; i++) {
@@ -430,7 +432,7 @@ export class FreeTransform {
         if (sign === 0) sign = s; else if (s !== sign) return false;
       }
     }
-    return true;
+    return sign !== 0; // sign===0 → 퇴화 사각형 → 내부 없음
   }
 
   // 화면 좌표 sp가 바운딩박스 외곽선에서 band(px) 이내인지(회전 핸들 영역 판정용).
@@ -506,7 +508,9 @@ export class FreeTransform {
     }
 
     // Shift: 비율 유지(코너에서만 의미). 변경된 폭/높이 비를 원본 비에 맞춘다.
-    if (e.shiftKey && this._isCorner(h)) {
+    // 단, 원본 폭/높이가 0(퇴화 선택: 1px 선/점)이면 비율(ow/oh)이 ∞/NaN이 되어
+    // nw/nh가 0으로 붕괴한다 → 비율유지를 건너뛰고 자유 스케일 결과를 그대로 둔다.
+    if (e.shiftKey && this._isCorner(h) && (maxX - minX) > 0 && (maxY - minY) > 0) {
       const ow = maxX - minX, oh = maxY - minY;
       let nw = nMaxX - nMinX, nh = nMaxY - nMinY;
       const ratio = ow / oh;

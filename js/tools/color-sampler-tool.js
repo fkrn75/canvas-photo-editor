@@ -14,10 +14,13 @@ export class ColorSamplerTool extends BaseTool {
   constructor(app, id) {
     super(app, id);
     this._dragIndex = -1;   // 드래그 중인 샘플 인덱스(-1=없음)
-    // 레이어 내용/구조가 바뀌면 보이는 색이 달라지므로 캐시를 다시 채운다(도구 활성 중일 때만).
-    app.bus.on(EVT.LAYERS_CHANGED, () => {
-      if (this.app.tools?.active === this) { this._resampleAll(); this.app.renderer.requestRender(); }
-    });
+    this._offLayers = null; // LAYERS_CHANGED 구독 해제 함수(활성 중에만 구독)
+    // LAYERS_CHANGED 핸들러: 레이어 내용/구조가 바뀌면 보이는 색이 달라지므로 캐시를 다시 채운다.
+    // 활성 중에만 구독하므로(onActivate↔onDeactivate 짝) 비활성 시 잔류하지 않는다.
+    this._onLayersChanged = () => {
+      this._resampleAll();
+      this.app.renderer.requestRender();
+    };
   }
 
   get cursor() { return "crosshair"; }
@@ -29,10 +32,17 @@ export class ColorSamplerTool extends BaseTool {
   }
 
   onActivate() {
+    // 활성 중에만 LAYERS_CHANGED 구독(중복 방지: 이미 구독돼 있으면 재구독 안 함).
+    if (!this._offLayers) this._offLayers = this.app.bus.on(EVT.LAYERS_CHANGED, this._onLayersChanged);
     // 활성화 시 기존 포인트 색을 최신 합성 결과로 갱신
     this._resampleAll();
     this.app.renderer.requestRender();
     this._showSummary();
+  }
+
+  onDeactivate() {
+    // 비활성 시 구독 해제(리스너 잔류 방지). 등록/해제 짝을 맞춘다.
+    if (this._offLayers) { this._offLayers(); this._offLayers = null; }
   }
 
   onPointerDown(pt, e) {

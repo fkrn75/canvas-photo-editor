@@ -21,6 +21,29 @@
 
 import * as Adjust from "../engine/adjustments.js";
 import * as Filters from "../engine/filters.js";
+import { DocumentTransformCommand } from "../history/commands/document-command.js";
+
+// 180° 회전을 "단일 히스토리 스텝"으로 실행한다.
+//   app.rotate90을 2회 호출하면 undo가 2단계로 쪼개진다(점검 #P2). 대신 180°는
+//   캔버스 크기가 그대로(가로↔세로 안 바뀜)이므로 flip과 동일한 방식으로 각 레이어를
+//   중심 기준 π 회전시켜 한 번의 DocumentTransformCommand로 묶는다.
+//   app.flip / app.rotate90 와 같은 패턴을 따른다(이 모듈만 수정 가능하여 app에 메서드 추가 대신 여기서 구성).
+function rotate180Once(app) {
+  const lm = app.layers;
+  app.history.execute(new DocumentTransformCommand(lm, "180° 회전", (m) => {
+    for (const L of m.layers) {
+      const tmp = document.createElement("canvas");
+      tmp.width = m.width; tmp.height = m.height;     // 180°는 크기 불변
+      const t = tmp.getContext("2d", { willReadFrequently: true });
+      // 중심으로 옮겨 π 회전 후 원위치 — 좌우·상하가 동시에 뒤집힌 효과.
+      t.translate(m.width / 2, m.height / 2);
+      t.rotate(Math.PI);
+      t.drawImage(L.canvas, -m.width / 2, -m.height / 2);
+      L.canvas = tmp; L.ctx = t; L.thumbDirty = true;
+    }
+  }));
+  app.selection.clear();
+}
 
 // ── 재생 가능한 액션 레지스트리 ──
 // 각 항목: { id, label, group, params?, run(app, values) }
@@ -83,7 +106,7 @@ function buildRegistry() {
     // ── 이미지/문서 변형(값 없음) ──
     { id: "img.rotateCW", label: "시계 방향 90°", group: "이미지", run: (app) => app.rotate90(1) },
     { id: "img.rotateCCW", label: "반시계 방향 90°", group: "이미지", run: (app) => app.rotate90(-1) },
-    { id: "img.rotate180", label: "180° 회전", group: "이미지", run: (app) => { app.rotate90(1); app.rotate90(1); } },
+    { id: "img.rotate180", label: "180° 회전", group: "이미지", run: (app) => rotate180Once(app) },
     { id: "img.flipH", label: "좌우 뒤집기", group: "이미지", run: (app) => app.flip("h") },
     { id: "img.flipV", label: "상하 뒤집기", group: "이미지", run: (app) => app.flip("v") },
 

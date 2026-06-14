@@ -385,7 +385,10 @@ export class SelectionManager {
     let inAmt, outAmt;
     if (position === "inside") { inAmt = w; outAmt = 0; }
     else if (position === "outside") { inAmt = 0; outAmt = w; }
-    else { inAmt = Math.ceil(w / 2); outAmt = Math.floor(w / 2); } // center
+    // center: 안/밖을 반폭으로 "대칭" 분배한다. 예전 ceil/floor 분배는 홀수폭일 때
+    // 안쪽이 1px 더 두꺼워(예: w=3 → 안2·밖1) 경계 기준 좌우/상하가 비대칭이었다.
+    // 반폭(w/2, 실수)을 양쪽에 동일 적용하면 거리비교가 대칭이 되어 비대칭 1px이 사라진다.
+    else { inAmt = w / 2; outAmt = w / 2; } // center(대칭)
 
     const inv = new Uint8Array(W * H);
     for (let i = 0; i < W * H; i++) inv[i] = bin[i] ? 0 : 1;
@@ -627,6 +630,36 @@ export class SelectionManager {
     const d = imageData.data;
     const n = W * H;
     const tol = Math.max(0, tolerance);
+
+    // ── tol=0 특례: 정확히 같은 색만 선택 ──
+    // 양자화(>>4) 경로는 대표색을 버킷 중앙값(…,8,24,40)으로 환산하므로,
+    // tol=0이면 "버킷 중앙값과 정확히 일치"라는 비현실적 조건이 되어 원래
+    // 선택된 픽셀조차 거의 매칭되지 않는다(빈 선택 버그). tol=0일 때는 양자화 없이
+    // 선택 내부의 "정확한 RGB"를 모아, 문서 전체에서 동일 RGB만 선택한다.
+    if (tol === 0) {
+      const exact = new Set();
+      for (let i = 0; i < n; i++) {
+        if (this.mask[i] === 0) continue;
+        const j = i * 4;
+        if (d[j + 3] === 0) continue; // 투명은 무시(기존 동작과 일관)
+        exact.add((d[j] << 16) | (d[j + 1] << 8) | d[j + 2]);
+      }
+      if (exact.size === 0) { this.app.status?.("선택 영역에 색이 없습니다."); return; }
+      const out = new Uint8Array(n);
+      let minX = W, minY = H, maxX = -1, maxY = -1;
+      for (let i = 0; i < n; i++) {
+        const j = i * 4;
+        if (exact.has((d[j] << 16) | (d[j + 1] << 8) | d[j + 2])) {
+          out[i] = 255;
+          const x = i % W, y = (i / W) | 0;
+          if (x < minX) minX = x; if (y < minY) minY = y;
+          if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+        }
+      }
+      if (maxX < 0) { this.clear(); return; }
+      this._commitMask(out);
+      return;
+    }
 
     // 1) 선택 내부 색을 양자화(>>4 → 0~15)해 대표색 집합 수집(성능상 색 종류를 압축).
     //    키: r4<<8 | g4<<4 | b4 (알파>0 픽셀만; 투명은 무시).

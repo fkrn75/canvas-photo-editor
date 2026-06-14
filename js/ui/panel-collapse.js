@@ -42,7 +42,9 @@ export function initPanelCollapse(root) {
   root.addEventListener("click", (e) => {
     const head = e.target.closest(".panel-head");
     if (!head) return;
-    if (e.target.closest("button, input, select, textarea, a")) return;
+    // 헤더 내 조작 요소 클릭은 접기 토글에서 제외(panel-dock/panel-float와 동일 규칙으로 일치).
+    // .opt-toggle(옵션 토글)을 누락하면 그 위 클릭이 접기로 오발한다 → 추가.
+    if (e.target.closest("button, input, select, textarea, a, .opt-toggle")) return;
     const panel = head.closest(".panel");
     if (!panel || !panel.id) return;
     panel.classList.toggle("collapsed");
