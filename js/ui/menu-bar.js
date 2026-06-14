@@ -9,6 +9,8 @@ import { EVT } from "../core/constants.js";
 import { openStroke } from "./stroke-dialog.js";
 import { openSaveForWeb } from "./save-for-web.js";
 import { openLayerStyle } from "./layer-style-dialog.js";
+import { ADJUSTMENT_TYPES } from "../layers/adjustment-layer.js";
+import { openAdjustmentLayerDialog } from "./adjustment-layer-dialog.js";
 
 export class MenuBar {
   constructor(app, el) {
@@ -85,6 +87,11 @@ export class MenuBar {
         { label: "보이는 레이어 병합", shortcut: "Shift+Ctrl+E", fn: () => a.layers.mergeVisible() },
         { label: "이미지 평탄화", fn: () => a.flattenImage() },
         { label: "레이어 스타일…", fn: () => openLayerStyle(a) },
+        { sep: true },
+        ...Object.keys(ADJUSTMENT_TYPES).map((type) => ({
+          label: `새 조정 레이어: ${ADJUSTMENT_TYPES[type].label}`,
+          fn: () => a.addAdjustmentLayer(type),
+        })),
         { sep: true },
         { label: "레이어 마스크 추가", fn: () => a.layers.addMask(undefined, { fromSelection: !!(a.selection?.active) }) },
         { label: "레이어 마스크 삭제", fn: () => a.layers.removeMask() },

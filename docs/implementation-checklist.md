@@ -55,7 +55,14 @@
 - [x] **레이어 스타일**: Drop Shadow / Outer Glow / Stroke(안·가운데·바깥) / Color Overlay, 비파괴 합성 + fx 버튼/다이얼로그 *(검증: 4효과 픽셀 정확)*
 - [x] **히스토리 팔레트**(작업 내역): 스텝 클릭 점프 + 스냅샷 *(검증: 스텝 렌더·무한루프 없음)*
 
-**다음 분기점: 🟠 고급 잔여** — Pen 도구/패스 · 벡터 마스크/셰이프 레이어 · 벡터 텍스트(재편집)+Character/Paragraph · 조정 레이어 · 채널 팔레트 · Healing/Patch · Pattern Stamp · History Brush · Blur/Sharpen/Smudge는 완료 · Liquify · Pattern Maker · Actions(매크로) · 이미지 모드 변환. **다음 iteration에서 계속.**
+### iteration 5 완료 (🟠 고급 2차) — 전부 8124 런타임 검증, 콘솔 에러 0
+
+- [x] **Pen 도구 + 베지어 패스 + Paths 팔레트**(P): 앵커/제어핸들, 패스→선택/채우기/획 *(검증: 4앵커→선택 bounds[50,50,100,100])*
+- [x] **조정 레이어**(비파괴): 밝기대비·색조채도·레벨·포스터화·한계값·반전·흑백, opacity/마스크 강도 *(검증: b=80→255·b=20→115 비례, 2레이어 비파괴)*
+- [x] **채널 팔레트**: R/G/B/A 채널 보기·채널→선택 *(검증: R채널→선택 active 800×600)*
+- [x] **History Brush(J)**: 스냅샷 소스 복원 / **Pattern Stamp(Y)**: 패턴 타일 *(검증: 체커 Δ62, HB 전환)*
+
+**다음 분기점: 🟠 고급 잔여** — 벡터 마스크/셰이프 레이어 · 벡터 텍스트(재편집)+Character/Paragraph · Healing Brush/Patch · Liquify · Pattern Maker · Actions(매크로) · 이미지 모드 변환(Grayscale/Indexed) · 조정 레이어 레벨/커브 복합 UI. **다음 iteration에서 계속.**
 
 > ⚠️ 알려진 한계(후속): 이미지 크기/자르기/회전/뒤집기 시 레이어 마스크가 함께 변형되지 않음(캔버스 크기 변경은 동기화됨). 🟠 진입 전/후속 iteration에서 app.js 변형부에 마스크 동반 처리 예정.
 
@@ -146,22 +153,22 @@
 ## 🟠 고급 — 전문 기능 (장기, 20+)
 
 ### 벡터 · 타이포
-- [ ] **Pen 도구 + 패스**(베지어): Pen/Freeform/Add·Delete Anchor/Convert Point + Paths 팔레트
+- [x] **Pen 도구 + 패스**(베지어): Pen + Add·Delete Anchor + Paths 팔레트(선택/채우기/획) *(iter5)*. (Freeform/Convert Point는 후속)
 - [ ] **Vector Mask / 셰이프 레이어**
 - [ ] **벡터 텍스트 레이어**(재편집 가능) + **Character/Paragraph 팔레트** + Warp Text + 안티앨리어스 모드
 
 ### 레이어 고급
 - [◐] **레이어 스타일**: Drop Shadow / Outer Glow / Stroke / Color Overlay 구현 *(iter4)*. (Inner Shadow/Glow · Bevel/Emboss · Satin · Gradient/Pattern Overlay · Styles 팔레트는 후속)
-- [ ] **조정 레이어**(비파괴 보정 + 마스크)
-- [ ] **채널 팔레트** UI(채널별 LUT 엔진은 이미 존재)
+- [x] **조정 레이어**(비파괴 보정 + 마스크) *(iter5: 밝기대비·색조채도·레벨·포스터화·한계값·반전·흑백)*
+- [x] **채널 팔레트** UI(채널별 LUT 엔진은 이미 존재) *(iter5: R/G/B/A 보기·채널→선택)*
 
 ### 히스토리
 - [x] **히스토리 팔레트**(단계 목록 클릭 이동) + **스냅샷** *(iter4)* + Step Forward/Backward UI
 
 ### 리터칭 · 페인팅 도구
 - [ ] Healing Brush / Patch (7.0 간판 기능)
-- [◐] Clone Stamp *(iter4)* / Pattern Stamp(후속)
-- [ ] History Brush / Art History Brush
+- [x] Clone Stamp *(iter4)* / Pattern Stamp *(iter5)*
+- [◐] History Brush *(iter5)* / Art History Brush(후속)
 - [x] Dodge / Burn / Sponge *(iter4)*
 - [x] Blur / Sharpen / Smudge (도구형) *(iter4)*
 

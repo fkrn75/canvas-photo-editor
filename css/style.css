@@ -245,6 +245,12 @@ html, body {
 
 /* 히스토리 패널 */
 #history-panel { flex: 1; min-height: 0; border-bottom: 1px solid var(--border); }
+#paths-panel { flex: 1; min-height: 0; border-bottom: 1px solid var(--border); }
+.path-row:hover { background: var(--bg-panel-2); }
+.path-row.active:hover { background: var(--accent); }
+.paths-toolbar button { flex: 1; min-width: 0; font-size: 11px; padding: 3px 4px; }
+#channels-panel { flex: none; max-height: 360px; overflow-y: auto; border-bottom: 1px solid var(--border); }
+.layer-name.adjustment { font-style: italic; color: #9fd0ff; }
 .history-step:hover { background: var(--bg-panel-2); }
 .history-step.active:hover { background: var(--accent); }
 .history-snap-row:hover { background: var(--bg-panel-2); }

@@ -192,7 +192,13 @@ export class LayersPanel {
       const name = document.createElement("div");
       name.className = "layer-name";
       name.textContent = (layer.clipped ? "↳ " : "") + layer.name;
-      name.addEventListener("dblclick", () => this._rename(layer, name));
+      // 조정 레이어: 이름 더블클릭 시 이름변경 대신 파라미터 편집 다이얼로그
+      if (layer.type === "adjustment") {
+        name.classList.add("adjustment");
+        name.addEventListener("dblclick", (e) => { e.stopPropagation(); this.app.editAdjustmentLayer(layer.id); });
+      } else {
+        name.addEventListener("dblclick", () => this._rename(layer, name));
+      }
 
       // fx 버튼: 레이어 스타일 편집 진입(스타일 있으면 강조 표시)
       const fxBtn = document.createElement("div");

@@ -36,6 +36,9 @@ export const TOOL = {
   CLONE: "clone",
   DODGEBURN: "dodgeburn",
   RETOUCH: "retouch",
+  PEN: "pen",
+  HISTORYBRUSH: "historybrush",
+  PATTERNSTAMP: "patternstamp",
 };
 
 // 도형 종류

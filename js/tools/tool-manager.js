@@ -17,6 +17,9 @@ import { ZoomTool } from "./zoom-tool.js";
 import { CloneStampTool } from "./clone-stamp-tool.js";
 import { DodgeBurnTool } from "./dodge-burn-tool.js";
 import { BlurSharpenSmudgeTool } from "./blur-sharpen-smudge-tool.js";
+import { PenTool } from "./pen-tool.js";
+import { HistoryBrushTool } from "./history-brush-tool.js";
+import { PatternStampTool } from "./pattern-stamp-tool.js";
 
 // 단일 키 도구 단축키 (g는 버킷↔그라디언트 슬롯 순환이라 아래 keydown에서 별도 처리)
 const KEYMAP = {
@@ -24,6 +27,8 @@ const KEYMAP = {
   b: TOOL.BRUSH, n: TOOL.PENCIL, e: TOOL.ERASER,
   i: TOOL.EYEDROPPER, u: TOOL.SHAPE, t: TOOL.TEXT, h: TOOL.HAND, z: TOOL.ZOOM,
   s: TOOL.CLONE, o: TOOL.DODGEBURN, r: TOOL.RETOUCH,
+  p: TOOL.PEN,
+  j: TOOL.HISTORYBRUSH, y: TOOL.PATTERNSTAMP,
 };
 
 function isTyping(e) {
@@ -64,6 +69,9 @@ export class ToolManager {
     this.tools[TOOL.CLONE] = new CloneStampTool(a, TOOL.CLONE);
     this.tools[TOOL.DODGEBURN] = new DodgeBurnTool(a, TOOL.DODGEBURN);
     this.tools[TOOL.RETOUCH] = new BlurSharpenSmudgeTool(a, TOOL.RETOUCH);
+    this.tools[TOOL.PEN] = new PenTool(a, TOOL.PEN);
+    this.tools[TOOL.HISTORYBRUSH] = new HistoryBrushTool(a, TOOL.HISTORYBRUSH);
+    this.tools[TOOL.PATTERNSTAMP] = new PatternStampTool(a, TOOL.PATTERNSTAMP);
   }
 
   setTool(id) {

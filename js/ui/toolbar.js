@@ -21,6 +21,9 @@ const ICONS = {
   [TOOL.CLONE]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6v3H9z"/><path d="M8 7h8v3H8z"/><path d="M12 10v7"/><circle cx="12" cy="19" r="2"/></svg>`,
   [TOOL.DODGEBURN]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/></svg>`,
   [TOOL.RETOUCH]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c4 5 6 8 6 11a6 6 0 0 1-12 0c0-3 2-6 6-11z"/></svg>`,
+  [TOOL.PEN]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 3.5l5 5L9 20l-5 1 1-5z"/><path d="M13.5 5.5l5 5"/><circle cx="6" cy="18" r="1.4" fill="currentColor" stroke="none"/></svg>`,
+  [TOOL.HISTORYBRUSH]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 8v4l3 2"/></svg>`,
+  [TOOL.PATTERNSTAMP]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><path d="M13 3h8v8h-8zM3 13h8v8H3z" fill="currentColor" stroke="none" opacity="0.3"/></svg>`,
 };
 
 const LAYOUT = [
@@ -41,6 +44,9 @@ const LAYOUT = [
   { id: TOOL.CLONE, name: "복제 도장 (S)" },
   { id: TOOL.DODGEBURN, name: "닷지/번/스펀지 (O)" },
   { id: TOOL.RETOUCH, name: "흐리게/선명/번짐 (R)" },
+  { id: TOOL.PEN, name: "펜 (P)" },
+  { id: TOOL.HISTORYBRUSH, name: "히스토리 브러시 (J)" },
+  { id: TOOL.PATTERNSTAMP, name: "패턴 도장 (Y)" },
 ];
 
 export class Toolbar {

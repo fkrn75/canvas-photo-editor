@@ -27,6 +27,10 @@ export class Layer {
     this.lockImage = false;        // 이미지 픽셀 잠금(페인팅 차단)
     this.lockPosition = false;     // 위치 잠금(이동 차단)
     this.styles = null;            // 레이어 스타일(layer-styles.js). null=없음
+    // ── 조정 레이어(Adjustment Layer) ──
+    this.type = "pixel";        // "pixel"=일반 레이어 / "adjustment"=조정 레이어(비파괴 보정)
+    this.adjustmentType = null; // 조정 종류(adjustment-layer.js ADJUSTMENT_TYPES 키)
+    this.adjustmentParams = null; // 조정 파라미터 객체
   }
 
   get width() { return this.canvas.width; }

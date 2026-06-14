@@ -2,6 +2,7 @@
 // 도구 옵션, 색상 등 UI 전역 상태를 보관한다. set()으로 변경하면 EventBus로 통지된다.
 
 import { EVT } from "./constants.js";
+import { buildDefaultPatterns } from "../engine/patterns.js";
 
 export class AppState {
   constructor(bus) {
@@ -58,6 +59,15 @@ export class AppState {
     // 흐리게/선명/번짐(blur-sharpen-smudge-tool.js)
     this.retouchMode = "blur";      // blur | sharpen | smudge
     this.retouchStrength = 0.5;     // 0~1
+
+    // 히스토리 브러시(history-brush-tool.js)
+    this.historyBrushSource = 0;   // 복원 소스로 쓸 스냅샷 인덱스
+
+    // 패턴 도장(pattern-stamp-tool.js)
+    this.patterns = buildDefaultPatterns();  // [{id,name,tile(canvas)}]
+    this.patternIndex = 0;          // 현재 패턴
+    this.patternOpacity = 1;        // 0~1
+    this.patternAligned = true;     // 패턴 원점 문서(0,0) 고정
 
     // 사각형 선택 도구 모드 (marquee-tool.js)
     this.marqueeMode = "rect";  // rect | ellipse | row | col

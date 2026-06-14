@@ -9,6 +9,8 @@ import {
   buildEffectiveSource, clipAlphaByAlpha,
 } from "../engine/blend.js";
 import { applyLayerStyles } from "./layer-styles.js";
+import { composeAdjustment } from "./adjustment-layer.js";
+import { AddAdjustmentLayerCommand } from "../history/commands/adjustment-command.js";
 import {
   AddLayerCommand, RemoveLayerCommand, MoveLayerCommand,
   MergeDownCommand, DuplicateLayerCommand, LayerPropCommand,
@@ -82,6 +84,12 @@ export class LayerManager {
     const index = this.indexOf(this.activeId) + 1; // 활성 레이어 위에 삽입
     this.app.history.execute(new AddLayerCommand(this, layer, index));
     return layer;
+  }
+
+  // 조정 레이어 추가(활성 레이어 위에 삽입). type=ADJUSTMENT_TYPES 키.
+  addAdjustmentLayer(type, params = null) {
+    const index = this.indexOf(this.activeId) + 1;
+    this.app.history.execute(new AddAdjustmentLayerCommand(this, type, index, params));
   }
 
   removeLayer(id = this.activeId) {
@@ -307,6 +315,13 @@ export class LayerManager {
     let clipBase = null;        // 가장 최근의 비클립 레이어
     let clipBaseVisible = false;
     for (const layer of layers) {
+      // 조정 레이어: 그때까지 합성된 ctx 전체에 보정 적용(아래 레이어 전부에 영향).
+      // 빈 투명 캔버스라 클립 베이스가 되면 안 되므로 clipBase 추적을 건드리지 않고 조기 처리.
+      if (layer.type === "adjustment") {
+        if (!layer.visible || (layer.opacity ?? 1) <= 0) continue;
+        composeAdjustment(ctx, layer, this.width, this.height);
+        continue;
+      }
       const isClipped = !!layer.clipped;
       if (!isClipped) {
         // 새 클립 베이스 후보

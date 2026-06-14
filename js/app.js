@@ -17,13 +17,17 @@ import { OptionsBar } from "./ui/options-bar.js";
 import { LayersPanel } from "./ui/layers-panel.js";
 import { SwatchesPanel } from "./ui/swatches-panel.js";
 import { HistoryPanel } from "./ui/history-panel.js";
+import { ChannelsPanel } from "./ui/channels-panel.js";
 import { MenuBar } from "./ui/menu-bar.js";
 import { Dialogs } from "./ui/dialogs.js";
 import { DocumentTransformCommand } from "./history/commands/document-command.js";
 import { FlattenCommand } from "./history/commands/layer-structure-command.js";
 import { openColorRange, openSaveSelection, openLoadSelection } from "./ui/select-dialogs.js";
+import { openAdjustmentLayerDialog } from "./ui/adjustment-layer-dialog.js";
 import { QuickMask } from "./selection/quick-mask.js";
 import { FreeTransform } from "./transform/free-transform.js";
+import { PathManager } from "./paths/path-manager.js";
+import { PathsPanel } from "./ui/paths-panel.js";
 
 class App {
   constructor() {
@@ -39,6 +43,7 @@ class App {
     this.renderer = new Renderer(this, this.canvas);
     this.history = new CommandManager(this);
     this.selection = new SelectionManager(this);
+    this.paths = new PathManager(this);
     this.quickMask = new QuickMask(this);   // 빠른 마스크 모드 (tools보다 먼저 생성)
     this.tools = new ToolManager(this, this.canvas);
     this.fileIO = new FileIO(this);
@@ -53,6 +58,8 @@ class App {
     this.layersPanel = new LayersPanel(this, document.getElementById("layers-panel"));
     this.swatchesPanel = new SwatchesPanel(this, document.getElementById("swatches-panel"));
     this.historyPanel = new HistoryPanel(this, document.getElementById("history-panel"));
+    this.channelsPanel = new ChannelsPanel(this, document.getElementById("channels-panel"));
+    this.pathsPanel = new PathsPanel(this, document.getElementById("paths-panel"));
     this.menuBar = new MenuBar(this, document.getElementById("menubar"));
 
     this._bindStatus();
@@ -336,6 +343,16 @@ class App {
   flattenImage() {
     if (this.layers.count <= 1) { this.status("병합할 레이어가 없습니다."); return; }
     this.history.execute(new FlattenCommand(this.layers));
+  }
+
+  // 조정 레이어 추가(메뉴/단축키용). 추가 후 편집 다이얼로그가 있으면 바로 연다.
+  addAdjustmentLayer(type) {
+    this.layers.addAdjustmentLayer(type);
+    this.editAdjustmentLayer(this.layers.activeId);
+  }
+  // 조정 레이어 파라미터 편집 다이얼로그.
+  editAdjustmentLayer(id = this.layers.activeId) {
+    openAdjustmentLayerDialog(this, id);
   }
 
   // ── 보정/필터 ──

@@ -139,6 +139,48 @@ export class OptionsBar {
         this._slider("경도", "brushHardness", 0, 1, 0.01, "%", 100);
         this._slider("강도", "retouchStrength", 0, 1, 0.01, "%", 100);
         break;
+      case TOOL.PEN:
+        this._hint("클릭=앵커 추가, 드래그=곡선 핸들, 시작점 클릭=닫기, 앵커 클릭=삭제. 패스 패널에서 선택/채우기/획.");
+        break;
+      case TOOL.HISTORYBRUSH: {
+        this._slider("크기", "brushSize", 1, 500, 1, "px");
+        this._slider("경도", "brushHardness", 0, 1, 0.01, "%", 100);
+        this._slider("불투명도", "brushOpacity", 0, 1, 0.01, "%", 100);
+        const snaps = this.app.historyPanel?.snapshots || [];
+        if (snaps.length === 0) {
+          this._hint("히스토리 팔레트에서 스냅샷을 만든 뒤 사용하세요.");
+        } else {
+          const g = this._group();
+          const lb = document.createElement("label"); lb.textContent = "소스"; g.appendChild(lb);
+          const sel = document.createElement("select");
+          snaps.forEach((s, i) => {
+            const o = document.createElement("option"); o.value = i; o.textContent = s.name; sel.appendChild(o);
+          });
+          let cur = this.app.state.historyBrushSource ?? 0;
+          if (cur >= snaps.length) cur = snaps.length - 1;
+          sel.value = cur;
+          sel.addEventListener("change", () => this.app.state.set("historyBrushSource", parseInt(sel.value, 10)));
+          g.appendChild(sel);
+        }
+        break;
+      }
+      case TOOL.PATTERNSTAMP: {
+        const pats = this.app.state.patterns || [];
+        const g = this._group();
+        const lb = document.createElement("label"); lb.textContent = "패턴"; g.appendChild(lb);
+        const sel = document.createElement("select");
+        pats.forEach((p, i) => {
+          const o = document.createElement("option"); o.value = i; o.textContent = p.name; sel.appendChild(o);
+        });
+        sel.value = this.app.state.patternIndex ?? 0;
+        sel.addEventListener("change", () => this.app.state.set("patternIndex", parseInt(sel.value, 10)));
+        g.appendChild(sel);
+        this._slider("크기", "brushSize", 1, 500, 1, "px");
+        this._slider("경도", "brushHardness", 0, 1, 0.01, "%", 100);
+        this._slider("불투명도", "patternOpacity", 0, 1, 0.01, "%", 100);
+        this._checkbox("정렬", "patternAligned");
+        break;
+      }
       default:
         this._hint("도구를 선택하세요.");
     }
