@@ -181,6 +181,55 @@ html, body {
   caret-color: currentColor;
 }
 
+/* ===== 노트(주석) 오버레이 ===== */
+#notes-overlay { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 5; }
+.note-marker {
+  position: absolute;
+  transform: translate(-2px, -100%);
+  width: 22px; height: 22px;
+  padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #f2c14e; color: #3a2f10;
+  border: 1px solid #8a6d1a; border-radius: 4px 4px 4px 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  cursor: pointer; pointer-events: auto;
+  line-height: 0;
+}
+.note-marker:hover { background: #ffd766; }
+.note-marker svg { width: 14px; height: 14px; }
+.note-popup {
+  position: absolute;
+  width: 220px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.55);
+  pointer-events: auto;
+  z-index: 6;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.note-popup-head {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 6px;
+  background: var(--bg-panel-2);
+  border-bottom: 1px solid var(--border);
+}
+.note-popup-title { flex: 1; font-size: 12px; color: var(--text-dim); }
+.note-popup-del, .note-popup-close {
+  border: none; background: transparent; color: var(--text-dim);
+  cursor: pointer; font-size: 12px; padding: 2px 4px; border-radius: 3px;
+}
+.note-popup-del:hover { background: var(--danger); color: #fff; }
+.note-popup-close:hover { background: var(--btn-hover); color: var(--text); }
+.note-popup-text {
+  border: none; outline: none; resize: vertical;
+  min-height: 70px; max-height: 240px;
+  padding: 6px 8px;
+  background: var(--bg-input); color: var(--text);
+  font-family: inherit; font-size: 13px; line-height: 1.4;
+}
+
 /* ===== 우측 패널 ===== */
 .rightpanel {
   background: var(--bg-panel);
@@ -198,6 +247,7 @@ html, body {
 }
 #layers-panel { flex: 1 1 auto; min-height: 140px; }
 #tool-presets-panel { flex: 0 0 auto; max-height: 240px; border-bottom: 1px solid var(--border); }
+#file-browser-panel { flex: 0 0 auto; max-height: 200px; border-bottom: 1px solid var(--border); }
 
 /* 레이어 옵션(불투명도/혼합) */
 .layer-options { padding: 6px 10px; border-bottom: 1px solid var(--border); }

@@ -94,6 +94,11 @@ export class PaintTool extends BaseTool {
     if (this.selection?.active) this.selection.applyClipPath(this.mctx); // 선택 영역으로 제한
     this.mctx.globalCompositeOperation = "lighten";
 
+    // ── 텍스처/노이즈 알파 변조 마스크(없으면 null) ──
+    // 색이 아니라 강도(알파)에만 곱하므로 단색·색 경로 양쪽에서 공통 사용. dynOn일 때만.
+    this.alphaMod = this.dynOn ? this.dyn.buildAlphaModulator(layer.width, layer.height) : null;
+    this.amd = this.alphaMod ? this.alphaMod.getContext("2d", { willReadFrequently: true }) : null;
+
     // ── 스탬프별 채색 경로 준비 ──
     if (this.perStampColor) {
       // 색 dab을 누적할 stroke 레이어(투명 시작). 선택 영역 클립 적용.
@@ -152,7 +157,7 @@ export class PaintTool extends BaseTool {
     this.mask = null; this.mctx = null; this.before = null; this.layer = null;
     this.targetCtx = null; this.targetMask = false; this.quickMaskTarget = false;
     this.strokeLayer = null; this.sctx = null; this.dualMask = null; this.dualCtx = null;
-    this.perStampColor = false; this.dynOn = false;
+    this.perStampColor = false; this.dynOn = false; this.alphaMod = null; this.amd = null;
   }
 
   onLeave() { this._hover = null; this.app.renderer.requestRender(); }
@@ -313,6 +318,11 @@ export class PaintTool extends BaseTool {
     }
 
     const m = this.mctx.getImageData(cb.x, cb.y, cb.w, cb.h).data;
+    // 텍스처/노이즈: 강도 마스크에 변조를 곱해 넣는다(마스크편집/레이어픽셀 경로 공통).
+    if (this.amd) {
+      const amData = this.amd.getImageData(cb.x, cb.y, cb.w, cb.h).data;
+      for (let i = 0; i < m.length; i += 4) m[i] = (m[i] * amData[i]) / 255;
+    }
     const out = ctx.getImageData(cb.x, cb.y, cb.w, cb.h);
     const od = out.data;
     const op = this.p.opacity;
@@ -370,12 +380,14 @@ export class PaintTool extends BaseTool {
     const od = out.data;
     const sd = this.sctx.getImageData(cb.x, cb.y, cb.w, cb.h).data; // stroke 레이어(색+알파)
     const dual = this.dualCtx ? this.dualCtx.getImageData(cb.x, cb.y, cb.w, cb.h).data : null;
+    const amd = this.amd ? this.amd.getImageData(cb.x, cb.y, cb.w, cb.h).data : null;
     const op = this.p.opacity;
     const lockT = this.layer.lockTransparency;
 
     for (let i = 0; i < sd.length; i += 4) {
       let a = (sd[i + 3] / 255) * op; // dab 누적 알파 × 전체 opacity
       if (dual) a *= dual[i] / 255;   // Dual Brush 질감 강도 곱
+      if (amd) a *= amd[i] / 255;     // 텍스처/노이즈 강도 곱
       if (a <= 0) continue;
       const srcA = od[i + 3];
       if (lockT) {

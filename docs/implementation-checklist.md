@@ -82,7 +82,14 @@
 - [x] **레벨/커브 조정 레이어**(P): 채널별 레벨/커브 비파괴 조정레이어 + 전용 에디터 *(검증: curves/levels 레이어 생성+복합UI 다이얼로그)*
 - [x] **Tool Presets 팔레트**(T): 도구 옵션 저장/적용(localStorage) *(검증: 브러시 프리셋 4종 적용)*. File Browser는 MV3 제약상 보류
 
-**남은 후속(선택, 미착수)**: 추가 브러시 동역학 세부(Texture/Noise) · Notes/Color Sampler · Measure 도구 · File Browser(IndexedDB). CMYK·16bit·ICC·인쇄·ImageReady 등은 🔴 제외 유지.
+### iteration 8 완료 (🟠 마이너 후속, v0.8.0) — 전부 8124 런타임 검증, 콘솔 에러 0
+
+- [x] **Color Sampler / Measure 도구**(M): 최대 4 샘플 RGB / 거리·각도(Shift 45°), I 슬롯 순환(스포이드→샘플러→측정) *(검증: [51,102,204]·거리30)*
+- [x] **Notes 주석 도구**(N): 노트 마커+메모 팝업, 드래그/우클릭 삭제, worldToScreen 재배치
+- [x] **File Browser(IndexedDB)**(F): 최근 이미지 썸네일 자동저장·재열기·LRU 30·세션영속(T가 보류한 것을 IndexedDB로 해결)
+- [x] **브러시 Texture/Noise 동역학**(D): 절차적 텍스처/노이즈 강도 변조(알파만 곱→기존 색/Dual 독립, 회귀0)
+
+**남은 후속(선택, 미착수)**: Audio Annotation · 예술계열 필터(Artistic/Sketch/Brush Strokes) · Render(Lens Flare/Clouds) 등. 16비트/CMYK/Lab·ICC·인쇄·ImageReady·PSD네이티브는 🔴 제외 유지. **→ 포토샵 7 클론의 핵심·중급·고급·마이너 기능이 사실상 완성됨.**
 
 > ⚠️ 알려진 한계(후속): 이미지 크기/자르기/회전/뒤집기 시 레이어 마스크가 함께 변형되지 않음(캔버스 크기 변경은 동기화됨). 🟠 진입 전/후속 iteration에서 app.js 변형부에 마스크 동반 처리 예정.
 

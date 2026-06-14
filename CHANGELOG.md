@@ -2,6 +2,33 @@
 
 > 크롬 확장(MV3) 이미지 에디터 — 외부 라이브러리·빌드도구 없이 순수 HTML/CSS/JS + Canvas로 자체 구현.
 
+## v0.8.0 — 2026-06-14 (팀 오케스트라 iteration 8 · 🟠 마이너 후속)
+
+> 팀 오케스트라(워커 4명 M/N/F/D 병렬 → 단일 writer 통합 → 8124 검증). 콘솔 에러 0.
+
+### 정보/측정 도구 (워커 M)
+- **Color Sampler**: 최대 4개 샘플 포인트, 합성 RGB 표시(십자표적+색칩), 드래그 이동/Alt 삭제. I 슬롯 순환(스포이드→샘플러→측정)
+- **Measure**: 거리/각도 측정(Shift 45° 스냅), 측정선+상태바 표시
+
+### 주석 (워커 N)
+- **Notes 도구**: 캔버스 클릭으로 노트 마커, 메모 팝업 편집, 드래그 이동/우클릭 삭제, 줌/팬 따라 재배치(worldToScreen)
+
+### 파일 (워커 F)
+- **File Browser (IndexedDB)**: 이미지 열 때 썸네일(JPEG 160px) 자동 저장, 최근 이미지 그리드(LRU 30개), 클릭 재열기/우클릭 삭제/세션 간 영속
+
+### 브러시 (워커 D)
+- **Texture 동역학**: 절차적 텍스처(canvas/paper/noise/grain)로 stroke 강도 변조, 스케일/깊이
+- **Noise 동역학**: 픽셀 노이즈 강도 변조. 색이 아닌 알파에만 곱 → 기존 색/Dual 동역학과 독립, OFF 시 회귀 0
+
+### 검증 (8124 런타임)
+- Color Sampler [51,102,204], Measure 거리30, Notes 마커+DOM 생성, Texture modulator 100×100(ON)/null(OFF), imageStore put/list/get/delete/LRU
+- 도구 전환·I 슬롯 순환 무에러, 우측 패널 12개 0px 회귀 없음, 콘솔 에러 0
+
+### 통합 방식
+- 워커 전용 신규 8파일 + 공유 통합(constants/state/tool-manager/toolbar/options-bar/app/editor.html/css/file-io/paint-tool). 단축키 전부 점유 → Color Sampler/Measure는 I 슬롯 순환, Notes는 툴바 버튼만. 우측 패널 12개(파일 브라우저 추가)
+
+---
+
 ## v0.7.0 — 2026-06-14 (팀 오케스트라 iteration 7 · 🟠 후속 선택기능)
 
 > 팀 오케스트라(워커 4명 S/B/P/T 병렬 → 단일 writer 통합 → 8124 검증). 콘솔 에러 0. v0.6.0 완결 후 후속(선택) 기능.

@@ -43,6 +43,9 @@ export const TOOL = {
   HEALING: "healing",
   PATCH: "patch",
   ARTHISTORY: "arthistory",
+  COLORSAMPLER: "colorsampler",
+  MEASURE: "measure",
+  NOTES: "notes",
 };
 
 // 도형 종류

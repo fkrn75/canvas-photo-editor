@@ -25,12 +25,15 @@ import { ShapeLayerTool } from "../layers/shape-layer-tool.js";
 import { HealingBrushTool } from "./healing-brush-tool.js";
 import { PatchTool } from "./patch-tool.js";
 import { ArtHistoryBrushTool } from "./art-history-brush-tool.js";
+import { ColorSamplerTool } from "./color-sampler-tool.js";
+import { MeasureTool } from "./measure-tool.js";
+import { NotesTool } from "./notes-tool.js";
 
 // 단일 키 도구 단축키 (g는 버킷↔그라디언트 슬롯 순환이라 아래 keydown에서 별도 처리)
 const KEYMAP = {
   v: TOOL.MOVE, m: TOOL.MARQUEE, l: TOOL.LASSO, w: TOOL.WAND,
   b: TOOL.BRUSH, n: TOOL.PENCIL, e: TOOL.ERASER,
-  i: TOOL.EYEDROPPER, u: TOOL.SHAPE, t: TOOL.TEXT, h: TOOL.HAND, z: TOOL.ZOOM,
+  u: TOOL.SHAPE, t: TOOL.TEXT, h: TOOL.HAND, z: TOOL.ZOOM,
   s: TOOL.CLONE, o: TOOL.DODGEBURN, r: TOOL.RETOUCH,
   p: TOOL.PEN, a: TOOL.SHAPELAYER,
   j: TOOL.HISTORYBRUSH, y: TOOL.PATTERNSTAMP,
@@ -83,6 +86,9 @@ export class ToolManager {
     this.tools[TOOL.HEALING] = new HealingBrushTool(a, TOOL.HEALING);
     this.tools[TOOL.PATCH] = new PatchTool(a, TOOL.PATCH);
     this.tools[TOOL.ARTHISTORY] = new ArtHistoryBrushTool(a, TOOL.ARTHISTORY);
+    this.tools[TOOL.COLORSAMPLER] = new ColorSamplerTool(a, TOOL.COLORSAMPLER);
+    this.tools[TOOL.MEASURE] = new MeasureTool(a, TOOL.MEASURE);
+    this.tools[TOOL.NOTES] = new NotesTool(a, TOOL.NOTES);
   }
 
   setTool(id) {
@@ -182,6 +188,12 @@ export class ToolManager {
       }
       if (k === "g") { // G 슬롯: 페인트 버킷 ↔ 그라디언트 순환
         this.setTool(this.activeId === TOOL.BUCKET ? TOOL.GRADIENT : TOOL.BUCKET);
+        e.preventDefault(); return;
+      }
+      if (k === "i") { // I 슬롯: 스포이드 → 색상 샘플러 → 측정 순환
+        const order = [TOOL.EYEDROPPER, TOOL.COLORSAMPLER, TOOL.MEASURE];
+        const cur = order.indexOf(this.activeId); // 슬롯 밖이면 -1 → 첫 도구로
+        this.setTool(order[(cur + 1) % order.length]);
         e.preventDefault(); return;
       }
       if (KEYMAP[k]) { this.setTool(KEYMAP[k]); e.preventDefault(); return; }

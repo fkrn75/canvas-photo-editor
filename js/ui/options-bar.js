@@ -118,6 +118,12 @@ export class OptionsBar {
       case TOOL.EYEDROPPER:
         this._hint("클릭하여 색을 추출합니다. (Alt+클릭: 배경색)");
         break;
+      case TOOL.COLORSAMPLER:
+        this._hint("클릭=샘플 포인트 추가(최대 4) · 드래그=이동 · Alt+클릭=삭제. 각 지점의 합성 RGB를 캔버스에 표시. I키로 슬롯 순환.");
+        break;
+      case TOOL.MEASURE:
+        this._hint("드래그=거리·각도 측정 (Shift=45° 스냅). 값은 측정선과 상태바에 표시. I키로 슬롯 순환.");
+        break;
       case TOOL.HAND:
         this._hint("드래그하여 화면을 이동합니다. (스페이스로 임시 전환 가능)");
         break;
@@ -231,6 +237,20 @@ export class OptionsBar {
           sel.addEventListener("change", () => this.app.state.set("historyBrushSource", parseInt(sel.value, 10)));
           g.appendChild(sel);
         }
+        break;
+      }
+      case TOOL.NOTES: {
+        this._hint("캔버스 클릭=노트 추가 · 마커 클릭=열기 · 우클릭=삭제 · 드래그=이동");
+        const cnt = (this.app.notes?.notes?.length) || 0;
+        const g = this._group();
+        const lb = document.createElement("label");
+        lb.textContent = `노트 ${cnt}개`;
+        g.appendChild(lb);
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "모두 삭제";
+        btn.addEventListener("click", () => { this.app.notes?.clear(); this._render(); });
+        g.appendChild(btn);
         break;
       }
       default:

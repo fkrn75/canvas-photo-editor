@@ -85,6 +85,14 @@ export class AppState {
     this.dynDual = false;         // 듀얼 브러시 on/off
     this.dualType = "spatter";    // spatter | chalk | dots | noise
     this.dualDensity = 0.5;       // 0~1 2차 텍스처 밀도
+    // 텍스처 동역학(brush-textures.js) — 절차적 텍스처를 stroke 강도에 곱
+    this.dynTexture = false;       // 텍스처 동역학 on/off
+    this.textureType = "canvas";   // canvas | paper | noise | grain
+    this.textureScale = 0.5;       // 0~1 무늬 크기(타일 16~128px)
+    this.textureDepth = 0.6;       // 0~1 명암 대비(질감 강도)
+    // 노이즈 동역학 — stroke 강도에 픽셀 노이즈 곱
+    this.dynNoise = false;         // 노이즈 동역학 on/off
+    this.noiseAmount = 0.5;        // 0~1 노이즈 양(강도 떨어뜨리는 폭)
     // 아트 히스토리 브러시(art-history-brush-tool.js) — 소스는 historyBrushSource 재사용
     this.artHistoryStyle = "tight"; // tight | loose | curl
     this.artHistoryLength = 16;     // 스트로크 길이(px)
@@ -110,6 +118,13 @@ export class AppState {
     this.gridSize = 32;        // 그리드 간격(문서 px)
     this.showGuides = true;    // 가이드 선 표시(가이드가 있을 때)
     this.guides = [];          // [{orient:'h'|'v', pos}] pos=문서 좌표(px)
+
+    // 색상 샘플러 포인트 [{x,y,rgb:[r,g,b]|null}] (color-sampler-tool.js) — 월드좌표
+    this.colorSamplers = [];
+    // 측정 도구 마지막 측정선 {x1,y1,x2,y2}|null (measure-tool.js) — 월드좌표
+    this.measureLine = null;
+    // 노트(주석) — 이미지 위 비파괴 메모. notes-manager.js가 CRUD 담당.
+    this.notes = [];          // [{id,x,y,text,author?,createdAt}] 문서 좌표 앵커
   }
 
   // ── 가이드 모델 (selection 모델처럼 메서드로만 조작) ──

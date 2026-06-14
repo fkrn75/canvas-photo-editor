@@ -1,23 +1,29 @@
 // brush-dynamics.js — 브러시 동역학 엔진 (순수 로직, DOM 무관).
 //
-// 포토샵의 "브러시 동역학" 4종을 모사한다. paint-tool이 스탬프를 찍기 직전에
-// 이 엔진을 호출해 각 스탬프의 크기/각도/위치/색을 변조(jitter)한다.
+// 포토샵의 "브러시 동역학"을 모사한다. paint-tool이 스탬프를 찍기 직전에
+// 이 엔진을 호출해 각 스탬프의 크기/각도/위치/색을 변조(jitter)하고,
+// stroke 전체 강도(알파)에 텍스처/노이즈를 곱한다.
 //
 //   1) Shape Dynamics : 스탬프마다 크기·각도를 무작위로 흔든다.
 //   2) Scatter        : 스탬프를 스트로크 경로에서 옆으로 흩뿌리고, 한 점에서 여러 개를 찍는다(count).
 //   3) Color Dynamics : 스탬프마다 전경↔배경 사이를 섞고 색조/채도/명도를 흔든다.
 //   4) Dual Brush     : 1차 스탬프 강도에 2차 텍스처(spatter/chalk 류)의 강도를 곱해 질감을 입힌다.
+//   5) Texture        : 절차적 텍스처(캔버스천/거친종이/노이즈)를 문서 좌표에 깔아 stroke 강도에 곱한다.
+//   6) Noise          : stroke 강도에 픽셀별 노이즈를 곱한다(거친 가장자리/흩뿌린 알파).
 //
 // [설계 원칙 — 회귀 안전]
 //   모든 동역학이 꺼져 있으면(isActive()===false) paint-tool은 기존 단색-마스크 경로를 그대로 탄다.
 //   색/질감을 스탬프마다 바꾸는 동역학(Color/Dual)이 켜진 경우에만 paint-tool이 "스탬프별 채색 경로"로 분기한다.
 //   크기/각도/흩뿌림(Shape/Scatter)은 단색 마스크 경로 안에서도 점(dot) 변조만으로 처리할 수 있다.
+//   Texture/Noise는 "색"이 아니라 "강도(알파)"에만 작용하므로 색 경로를 강제하지 않는다(needsPerStampColor 무관).
+//   대신 단색·색 양쪽 경로에서 stroke 강도 버퍼에 한 번에 곱한다(buildAlphaModulator). 전경색·지우기·마스크편집과 자동 호환.
 //
 // [난수]
 //   결정성(테스트·미리보기 일관성)을 위해 자체 시드 PRNG(mulberry32)를 쓴다.
 //   stroke 시작 시 reset(seed)로 초기화한다. 시드를 안 주면 Date.now 기반.
 
 import { hexToRgb, rgbToHex, rgbToHsl, hslToRgb } from "./color.js";
+import { buildTexture } from "./brush-textures.js";
 
 // 빠르고 가벼운 시드 난수(mulberry32). 0~1 반환.
 function mulberry32(seed) {
@@ -49,14 +55,21 @@ export class BrushDynamics {
   // 동역학이 하나라도 켜져 있는가(꺼져 있으면 paint-tool 기존 경로 유지)
   isActive() {
     const s = this.state;
-    return !!(s.dynShape || s.dynScatter || s.dynColor || s.dynDual);
+    return !!(s.dynShape || s.dynScatter || s.dynColor || s.dynDual || s.dynTexture || s.dynNoise);
   }
 
   // 스탬프마다 색/질감이 달라지는가 → paint-tool이 "스탬프별 채색 경로"를 써야 함.
-  // (Shape/Scatter만이면 단색 마스크 경로 안에서 점 변조로 충분하다.)
+  // (Shape/Scatter/Texture/Noise만이면 단색 마스크 경로 안에서 처리 가능 — 색을 바꾸지 않으므로.)
   needsPerStampColor() {
     const s = this.state;
     return !!(s.dynColor || s.dynDual);
+  }
+
+  // stroke 강도(알파)에 곱할 변조 마스크가 필요한가(Texture 또는 Noise).
+  // 단색 경로(_composite)·색 경로(_compositeColor) 양쪽에서 이 마스크를 강도에 곱한다.
+  hasAlphaModulator() {
+    const s = this.state;
+    return !!(s.dynTexture || s.dynNoise);
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -222,6 +235,72 @@ export class BrushDynamics {
       }
     }
     ctx.restore();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Texture / Noise — stroke 강도(알파)에 곱할 변조 마스크
+  // ─────────────────────────────────────────────────────────────
+
+  // Texture(절차적 텍스처) + Noise(픽셀 노이즈)를 합성한 강도 마스크를 만든다.
+  // 반환: 흰색(255)=강도 100% 유지, 검정(0)=강도 0인 그레이스케일 canvas. 둘 다 꺼졌으면 null.
+  //
+  // paint-tool은 stroke 합성 시 이 마스크의 R 채널값(0~255)을 잉크 강도에 곱한다.
+  //   - Texture : 문서 좌표(0,0)에 타일을 반복(repeat)해 깐다 → 붓이 지나간 자리마다 같은 위치의 무늬가 찍힌다.
+  //   - Noise   : 픽셀별 난수로 밝기를 흔든다(noiseAmount만큼 어둡게) → 거친/흩뿌린 알파.
+  //
+  // [선택영역 클립 불필요]
+  //   이 마스크는 "강도 배율(0~1)"일 뿐이고, 실제 stroke 강도(마스크 캔버스/stroke 레이어)는
+  //   paint-tool에서 이미 선택영역으로 클립된다. 따라서 여기서 클립을 다시 걸 필요가 없다.
+  //   (문서 전체를 균일 변조해도 클립 밖은 강도 0이라 칠해지지 않는다.)
+  //
+  // width/height : 문서(레이어) 크기.
+  buildAlphaModulator(width, height) {
+    const s = this.state;
+    if (!s.dynTexture && !s.dynNoise) return null;
+
+    const c = document.createElement("canvas");
+    c.width = width; c.height = height;
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    // 흰 바탕(=변조 없는 기본: 강도 100%). 이후 텍스처/노이즈로 어둡게 한다.
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, width, height);
+
+    // ── Texture: 절차적 타일을 문서 전체에 반복해서 깐다 ──
+    if (s.dynTexture) {
+      const { tile } = buildTexture(
+        s.textureType || "canvas",
+        s.textureScale ?? 0.5,
+        s.textureDepth ?? 0.6,
+        1, // 시드 고정(같은 옵션이면 항상 같은 무늬 = 캐시·일관성)
+      );
+      const pat = ctx.createPattern(tile, "repeat");
+      if (pat) {
+        // multiply: 흰 바탕에 텍스처 명암을 곱한다(텍스처 어두운 곳 = 강도↓).
+        ctx.save();
+        ctx.globalCompositeOperation = "multiply";
+        ctx.fillStyle = pat;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+      }
+    }
+
+    // ── Noise: 픽셀별 난수로 밝기를 추가로 흔든다(곱) ──
+    if (s.dynNoise) {
+      const amt = clamp01(s.noiseAmount ?? 0.5);
+      if (amt > 0) {
+        const img = ctx.getImageData(0, 0, width, height);
+        const d = img.data;
+        for (let i = 0; i < d.length; i += 4) {
+          // 0~amt 만큼 어둡게 흔듦(밝기 1 → 1-amt*rng). 곱이므로 기존 텍스처와 자연 합성.
+          const f = 1 - this.rng() * amt;
+          d[i]     = d[i]     * f;
+          d[i + 1] = d[i + 1] * f;
+          d[i + 2] = d[i + 2] * f;
+        }
+        ctx.putImageData(img, 0, 0);
+      }
+    }
+    return c;
   }
 }
 

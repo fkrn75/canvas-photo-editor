@@ -36,6 +36,9 @@ import { CharacterPanel } from "./ui/character-panel.js";
 import { ShapePanel } from "./ui/shape-panel.js";
 import { BrushesPanel } from "./ui/brushes-panel.js";
 import { ToolPresetsPanel } from "./ui/tool-presets-panel.js";
+import { FileBrowserPanel } from "./ui/file-browser-panel.js";
+import { NotesManager } from "./notes/notes-manager.js";
+import { NotesOverlay } from "./ui/notes-overlay.js";
 
 class App {
   constructor() {
@@ -54,6 +57,7 @@ class App {
     this.paths = new PathManager(this);
     this.actions = new ActionsManager(this);   // Actions(매크로) 녹화·재생
     this.quickMask = new QuickMask(this);   // 빠른 마스크 모드 (tools보다 먼저 생성)
+    this.notes = new NotesManager(this);   // 노트(주석) 모델 — tools보다 먼저 생성
     this.tools = new ToolManager(this, this.canvas);
     this.fileIO = new FileIO(this);
     this.clipboard = new Clipboard(this);
@@ -66,6 +70,7 @@ class App {
     this.colorPanel = new ColorPanel(this, document.getElementById("colorbox"));
     this.optionsBar = new OptionsBar(this, document.getElementById("optionsbar"));
     this.layersPanel = new LayersPanel(this, document.getElementById("layers-panel"));
+    this.fileBrowserPanel = new FileBrowserPanel(this, document.getElementById("file-browser-panel"));
     this.swatchesPanel = new SwatchesPanel(this, document.getElementById("swatches-panel"));
     this.stylesPanel = new StylesPanel(this, document.getElementById("styles-panel"));
     this.historyPanel = new HistoryPanel(this, document.getElementById("history-panel"));
@@ -76,6 +81,7 @@ class App {
     this.brushesPanel = new BrushesPanel(this, document.getElementById("brushes-panel"));
     this.actionsPanel = new ActionsPanel(this, document.getElementById("actions-panel"));
     this.toolPresetsPanel = new ToolPresetsPanel(this, document.getElementById("tool-presets-panel"));
+    this.notesOverlay = new NotesOverlay(this);   // 노트 마커+팝업 DOM 오버레이
     this.menuBar = new MenuBar(this, document.getElementById("menubar"));
 
     this._bindStatus();

@@ -40,6 +40,12 @@ export class FileIO {
         URL.revokeObjectURL(url);
         this.app.placeImage(img, file.name?.replace(/\.[^.]+$/, "") || "이미지");
         this.app.status(`열기: ${file.name}`);
+        // File Browser(IndexedDB)에 최근 이미지로 저장 + 패널 갱신 신호(워커F). 저장 실패는 무시.
+        if (this.app.imageStore) {
+          this.app.imageStore.putFromImage(img, file.name?.replace(/\.[^.]+$/, "") || "이미지")
+            .then(() => this.app.bus.emit("image:stored"))
+            .catch(() => {});
+        }
         resolve();
       };
       img.onerror = () => {

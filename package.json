@@ -1,6 +1,6 @@
 {
   "name": "canvas-photo-editor",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "포토샵 7 수준 기본 기능의 크롬 확장(MV3) 이미지 에디터. 외부 라이브러리·빌드도구 없음.",
   "type": "module",
   "private": true

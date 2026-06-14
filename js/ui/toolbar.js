@@ -28,6 +28,9 @@ const ICONS = {
   [TOOL.HEALING]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6-9 9H5v-6z"/><path d="M9 9l-4 4 6 6 4-4"/><path d="M3 21h6"/></svg>`,
   [TOOL.PATCH]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-dasharray="3 2"><path d="M5 5h9l5 5v9H5z"/></svg>`,
   [TOOL.ARTHISTORY]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.3"/><path d="M3 4v4h4"/><path d="M9 14c1.5-2 3-2 4.5 0s3 2 4.5 0"/></svg>`,
+  [TOOL.COLORSAMPLER]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l8-8M11 11l2 2"/><circle cx="17" cy="7" r="3"/><path d="M17 4v6M14 7h6"/></svg>`,
+  [TOOL.MEASURE]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M11 9l2 2M15 5l2 2"/></svg>`,
+  [TOOL.NOTES]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-4 4v-4H4z"/><path d="M8 9h8M8 12h5"/></svg>`,
 };
 
 const LAYOUT = [
@@ -41,6 +44,8 @@ const LAYOUT = [
   { id: TOOL.BUCKET, name: "페인트 버킷 (G)" },
   { id: TOOL.GRADIENT, name: "그라디언트 (G)" },
   { id: TOOL.EYEDROPPER, name: "스포이드 (I)" },
+  { id: TOOL.COLORSAMPLER, name: "색상 샘플러 (I)" },
+  { id: TOOL.MEASURE, name: "측정 (I)" },
   { id: TOOL.SHAPE, name: "도형 (U)" },
   { id: TOOL.SHAPELAYER, name: "셰이프 레이어 (A)" },
   { id: TOOL.TEXT, name: "텍스트 (T)" },
@@ -55,6 +60,7 @@ const LAYOUT = [
   { id: TOOL.HEALING, name: "복구 브러시 (K)" },
   { id: TOOL.PATCH, name: "패치 (C)" },
   { id: TOOL.ARTHISTORY, name: "아트 히스토리 브러시 (F)" },
+  { id: TOOL.NOTES, name: "노트 (주석)" },
 ];
 
 export class Toolbar {

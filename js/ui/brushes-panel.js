@@ -5,14 +5,17 @@
 //   - Scatter        : 흩뿌림 양 + 한 점당 개수
 //   - Color Dynamics : 전경↔배경 변동 + 색조/채도/명도 지터
 //   - Dual Brush     : 2차 텍스처(종류 + 밀도)로 질감 곱
+//   - Texture        : 절차적 텍스처(캔버스천/거친종이/노이즈)를 stroke 강도에 곱(종류 + 스케일 + 깊이)
+//   - Noise          : stroke 강도에 픽셀 노이즈 곱(노이즈 양)
 //
 // 각 섹션은 활성 체크박스 + 슬라이더(들)로 구성된다. 값은 app.state와 양방향 바인딩.
-// brush-dynamics.js 엔진이 이 state 필드들을 읽어 paint-tool 스탬프에 적용한다.
+// brush-dynamics.js 엔진이 이 state 필드들을 읽어 paint-tool 스탬프/강도에 적용한다.
 //
 // history-panel.js / swatches-panel.js의 인라인 스타일 패턴을 따른다(공유 CSS 없이도 동작).
 // ⚠ .rightpanel 안에서는 패널이 flex 형제로 짜부되지 않도록 인라인 레이아웃을 보장한다(메모리 사례 참고).
 
 import { EVT } from "../core/constants.js";
+import { TEXTURE_TYPES } from "../engine/brush-textures.js";
 
 export class BrushesPanel {
   constructor(app, el) {
@@ -59,6 +62,23 @@ export class BrushesPanel {
         ["spatter", "스패터"], ["chalk", "분필"], ["dots", "점"], ["noise", "노이즈"],
       ]);
       this._slider(box, "밀도", "dualDensity", 0.05, 1, 0.01, "%", 100);
+    });
+
+    // ── Texture ──
+    // 절차적 텍스처를 stroke 강도(알파)에 곱한다. 색은 그대로(전경색), 질감만 입힌다.
+    this._section("텍스처", "dynTexture", (box) => {
+      this._select(box, "패턴", "textureType", TEXTURE_TYPES);
+      this._slider(box, "스케일", "textureScale", 0, 1, 0.01, "%", 100,
+        "무늬 크기(클수록 텍스처가 굵어집니다).");
+      this._slider(box, "깊이", "textureDepth", 0, 1, 0.01, "%", 100,
+        "텍스처 명암 대비(클수록 질감이 강하게 먹힙니다).");
+    });
+
+    // ── Noise ──
+    // stroke 강도에 픽셀별 노이즈를 곱해 거칠고 흩뿌린 가장자리를 만든다.
+    this._section("노이즈", "dynNoise", (box) => {
+      this._slider(box, "노이즈", "noiseAmount", 0, 1, 0.01, "%", 100,
+        "강도를 픽셀마다 무작위로 떨어뜨립니다(거친 질감).");
     });
 
     // 안내
