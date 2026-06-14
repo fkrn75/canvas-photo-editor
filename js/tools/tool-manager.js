@@ -24,6 +24,7 @@ import { TextToolV } from "../text/text-tool-v.js";
 import { ShapeLayerTool } from "../layers/shape-layer-tool.js";
 import { HealingBrushTool } from "./healing-brush-tool.js";
 import { PatchTool } from "./patch-tool.js";
+import { ArtHistoryBrushTool } from "./art-history-brush-tool.js";
 
 // 단일 키 도구 단축키 (g는 버킷↔그라디언트 슬롯 순환이라 아래 keydown에서 별도 처리)
 const KEYMAP = {
@@ -34,6 +35,7 @@ const KEYMAP = {
   p: TOOL.PEN, a: TOOL.SHAPELAYER,
   j: TOOL.HISTORYBRUSH, y: TOOL.PATTERNSTAMP,
   k: TOOL.HEALING, c: TOOL.PATCH,
+  f: TOOL.ARTHISTORY,
 };
 
 function isTyping(e) {
@@ -80,6 +82,7 @@ export class ToolManager {
     this.tools[TOOL.SHAPELAYER] = new ShapeLayerTool(a, TOOL.SHAPELAYER);
     this.tools[TOOL.HEALING] = new HealingBrushTool(a, TOOL.HEALING);
     this.tools[TOOL.PATCH] = new PatchTool(a, TOOL.PATCH);
+    this.tools[TOOL.ARTHISTORY] = new ArtHistoryBrushTool(a, TOOL.ARTHISTORY);
   }
 
   setTool(id) {

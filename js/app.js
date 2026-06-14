@@ -16,6 +16,7 @@ import { ColorPanel } from "./ui/color-panel.js";
 import { OptionsBar } from "./ui/options-bar.js";
 import { LayersPanel } from "./ui/layers-panel.js";
 import { SwatchesPanel } from "./ui/swatches-panel.js";
+import { StylesPanel } from "./ui/styles-panel.js";
 import { HistoryPanel } from "./ui/history-panel.js";
 import { ChannelsPanel } from "./ui/channels-panel.js";
 import { MenuBar } from "./ui/menu-bar.js";
@@ -33,6 +34,8 @@ import { ActionsManager } from "./actions/actions-manager.js";
 import { ActionsPanel } from "./ui/actions-panel.js";
 import { CharacterPanel } from "./ui/character-panel.js";
 import { ShapePanel } from "./ui/shape-panel.js";
+import { BrushesPanel } from "./ui/brushes-panel.js";
+import { ToolPresetsPanel } from "./ui/tool-presets-panel.js";
 
 class App {
   constructor() {
@@ -64,12 +67,15 @@ class App {
     this.optionsBar = new OptionsBar(this, document.getElementById("optionsbar"));
     this.layersPanel = new LayersPanel(this, document.getElementById("layers-panel"));
     this.swatchesPanel = new SwatchesPanel(this, document.getElementById("swatches-panel"));
+    this.stylesPanel = new StylesPanel(this, document.getElementById("styles-panel"));
     this.historyPanel = new HistoryPanel(this, document.getElementById("history-panel"));
     this.channelsPanel = new ChannelsPanel(this, document.getElementById("channels-panel"));
     this.pathsPanel = new PathsPanel(this, document.getElementById("paths-panel"));
     this.characterPanel = new CharacterPanel(this, document.getElementById("character-panel"));
     this.shapePanel = new ShapePanel(this, document.getElementById("shape-panel"));
+    this.brushesPanel = new BrushesPanel(this, document.getElementById("brushes-panel"));
     this.actionsPanel = new ActionsPanel(this, document.getElementById("actions-panel"));
+    this.toolPresetsPanel = new ToolPresetsPanel(this, document.getElementById("tool-presets-panel"));
     this.menuBar = new MenuBar(this, document.getElementById("menubar"));
 
     this._bindStatus();

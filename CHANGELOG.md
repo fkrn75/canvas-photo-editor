@@ -2,6 +2,34 @@
 
 > 크롬 확장(MV3) 이미지 에디터 — 외부 라이브러리·빌드도구 없이 순수 HTML/CSS/JS + Canvas로 자체 구현.
 
+## v0.7.0 — 2026-06-14 (팀 오케스트라 iteration 7 · 🟠 후속 선택기능)
+
+> 팀 오케스트라(워커 4명 S/B/P/T 병렬 → 단일 writer 통합 → 8124 검증). 콘솔 에러 0. v0.6.0 완결 후 후속(선택) 기능.
+
+### 레이어 스타일 (워커 S)
+- **스타일 6종 추가**(기존 4종→10종): Inner Shadow·Inner Glow·Bevel/Emboss(Lambert 음영)·Satin·Gradient Overlay(선형/원형)·Pattern Overlay. 비파괴 합성
+- **Styles 팔레트**: 빌트인 프리셋 9종, 클릭 일괄 적용(undo), 현재 스타일 저장(localStorage), 절차적 패턴 6종(외부이미지 0)
+
+### 브러시 (워커 B)
+- **Brushes 동역학 팔레트**: Shape Dynamics(크기/각도 지터)·Scatter(흩뿌림)·Color Dynamics(전경↔배경/HSB)·Dual Brush. 동역학 OFF·연필·지우개는 기존 동작 보존(회귀 0)
+- **Art History Brush(F)**: 히스토리 스냅샷 색을 곡선 다발로 칠하기(타이트/느슨/말림)
+
+### 펜 · 조정 (워커 P)
+- **Freeform 펜 + Convert Point**: 펜 도구 모드 토글(표준/자유곡선), Alt+앵커=코너↔곡선 전환. 기존 펜 회귀 0
+- **레벨/커브 조정 레이어**: 채널별 레벨(히스토그램)·커브(Catmull-Rom) 비파괴 조정레이어 + 전용 에디터 다이얼로그(하위호환 유지)
+
+### 자동화 (워커 T)
+- **Tool Presets 팔레트**: 도구 옵션 묶음 저장/적용(localStorage), 도구별 그룹·기본 프리셋·우클릭 삭제. (File Browser는 MV3 FS 제약상 보류)
+
+### 검증 (8124 런타임)
+- curves/levels 조정레이어 생성+복합 UI 다이얼로그, Tool Presets 브러시 4종 적용, 레이어스타일 프리셋 9종 적용, layer.styles 설정
+- 도구 전환(arthistory/pen freeform 토글) 무에러, 우측 패널 11개 0px 회귀 없음, 콘솔 에러 0
+
+### 통합 방식
+- 워커 전용파일 직접 확장(layer-styles/paint-tool/pen-tool/adjustment-layer) + 신규 7파일 + 공유 8파일 단일 writer 통합(충돌 0). 신규 단축키 F(Art History), penMode 옵션바 토글, 우측 패널 11개(견본/스타일/내역/채널/패스/문자/셰이프/브러시/액션/프리셋/레이어)
+
+---
+
 ## v0.6.0 — 2026-06-14 (팀 오케스트라 iteration 6 · 🟠 고급 잔여 완결)
 
 > 팀 오케스트라(워커 4명 V/H/A/I 병렬 구현 → 단일 writer 통합 → 8124 런타임 검증). 전부 콘솔 에러 0. 🟠 고급 잔여 7기능 일괄 완성.

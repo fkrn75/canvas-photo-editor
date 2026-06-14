@@ -72,7 +72,17 @@
 - [x] **Pattern Maker / Actions(매크로)**(A): 타일 패턴 생성·저장 / 작업 녹화·재생 팔레트
 - [x] **이미지 모드 변환**(I): 회색조·인덱스(median-cut+디더)·비트맵(1bit)·RGB복귀 + Color Table *(검증: 회색[76,76,76]·인덱스순색·비트맵1bit)*
 
-**🟠 고급 잔여 완결(v0.6.0).** 남은 후속(선택): 조정레이어 레벨/커브 복합 UI · Inner Shadow/Bevel 등 레이어스타일 확장 · Art History Brush · Freeform/Convert Point 펜 · Brushes 동역학 팔레트 · Tool Presets/File Browser. (CMYK·16bit·ICC·인쇄·ImageReady 등은 🔴 제외 유지.)
+**🟠 고급 잔여 완결(v0.6.0).**
+
+### iteration 7 완료 (🟠 후속 선택기능, v0.7.0) — 전부 8124 런타임 검증, 콘솔 에러 0
+
+- [x] **레이어 스타일 확장**(S): 기존 4종→10종(Inner Shadow/Glow · Bevel/Emboss · Satin · Gradient/Pattern Overlay) + Styles 팔레트(프리셋 9종 · 절차적 패턴 6종 · localStorage) *(검증: 프리셋 9개 적용·layer.styles 설정)*
+- [x] **브러시 동역학 팔레트**(B): Shape/Scatter/Color/Dual Dynamics(OFF·연필·지우개 회귀0) + **Art History Brush(F)**
+- [x] **Freeform/Convert Point 펜**(P): 펜 모드 토글(표준/자유곡선), Alt+앵커 코너↔곡선
+- [x] **레벨/커브 조정 레이어**(P): 채널별 레벨/커브 비파괴 조정레이어 + 전용 에디터 *(검증: curves/levels 레이어 생성+복합UI 다이얼로그)*
+- [x] **Tool Presets 팔레트**(T): 도구 옵션 저장/적용(localStorage) *(검증: 브러시 프리셋 4종 적용)*. File Browser는 MV3 제약상 보류
+
+**남은 후속(선택, 미착수)**: 추가 브러시 동역학 세부(Texture/Noise) · Notes/Color Sampler · Measure 도구 · File Browser(IndexedDB). CMYK·16bit·ICC·인쇄·ImageReady 등은 🔴 제외 유지.
 
 > ⚠️ 알려진 한계(후속): 이미지 크기/자르기/회전/뒤집기 시 레이어 마스크가 함께 변형되지 않음(캔버스 크기 변경은 동기화됨). 🟠 진입 전/후속 iteration에서 app.js 변형부에 마스크 동반 처리 예정.
 

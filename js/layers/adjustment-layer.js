@@ -14,17 +14,69 @@
 import { Layer } from "./layer.js";
 import * as Adjust from "../engine/adjustments.js";
 
+// ── 채널별 레벨/커브 헬퍼 ────────────────────────────────────────────────────
+// 채널 순서(합성 RGB + 개별 R/G/B + 알파). UI/적용 모두 이 순서를 따른다.
+export const LEVELS_CHANNELS = ["rgb", "r", "g", "b", "a"];
+
+// 한 채널의 레벨 기본값(항등: 보정 없음).
+function defLevel() { return { inB: 0, inW: 255, gamma: 1, outB: 0, outW: 255 }; }
+// 채널별 레벨 기본 파라미터 { rgb:{...}, r:{...}, ... }.
+function defLevelsAll() {
+  const o = {};
+  for (const ch of LEVELS_CHANNELS) o[ch] = defLevel();
+  return o;
+}
+// 한 채널 레벨이 항등(무보정)인가.
+function levelIsIdentity(s) {
+  return !s || (s.inB === 0 && s.inW === 255 && s.gamma === 1 && s.outB === 0 && s.outW === 255);
+}
+
+// 한 채널의 커브 기본값(항등 직선). 제어점은 {x,y} 0~255.
+function defCurve() { return [{ x: 0, y: 0 }, { x: 255, y: 255 }]; }
+// 채널별 커브 기본 파라미터.
+function defCurvesAll() {
+  const o = {};
+  for (const ch of LEVELS_CHANNELS) o[ch] = defCurve();
+  return o;
+}
+// 한 채널 커브가 항등(직선 0,0~255,255)인가.
+function curveIsIdentity(p) {
+  return !p || (p.length === 2 && p[0].x === 0 && p[0].y === 0 && p[1].x === 255 && p[1].y === 255);
+}
+
+// 레벨 파라미터를 "채널별" 형태로 정규화한다.
+// 하위 호환: 예전(단일 RGB) 파라미터 { inB,gamma,inW,outB,outW } 가 들어오면 rgb 채널로 승격한다.
+export function normalizeLevelsParams(p) {
+  const out = defLevelsAll();
+  if (!p) return out;
+  // 예전 평면 형태 감지(채널 키 대신 inB 등이 최상위에 있음)
+  if (p.inB !== undefined || p.inW !== undefined || p.gamma !== undefined) {
+    out.rgb = { inB: p.inB ?? 0, inW: p.inW ?? 255, gamma: p.gamma ?? 1, outB: p.outB ?? 0, outW: p.outW ?? 255 };
+    return out;
+  }
+  for (const ch of LEVELS_CHANNELS) if (p[ch]) out[ch] = { ...defLevel(), ...p[ch] };
+  return out;
+}
+
+// 커브 파라미터를 채널별 형태로 정규화한다(누락 채널은 항등 직선).
+export function normalizeCurvesParams(p) {
+  const out = defCurvesAll();
+  if (!p) return out;
+  for (const ch of LEVELS_CHANNELS) if (Array.isArray(p[ch]) && p[ch].length >= 2) out[ch] = p[ch].map((q) => ({ x: q.x, y: q.y }));
+  return out;
+}
+
 // ── 조정 타입 메타 정의 ──────────────────────────────────────────────────────
-// 각 타입: { label, defaults, sliders, hasDialog, apply(img, params) }
+// 각 타입: { label, defaults, sliders, editor, apply(img, params) }
 //   label    : 메뉴/레이어 행 표시 이름
 //   defaults : 새 조정 레이어 생성 시 기본 파라미터(없으면 {})
-//   sliders  : 편집 다이얼로그용 슬라이더 정의 배열(없으면 다이얼로그 없이 즉시 적용)
+//   sliders  : 편집 다이얼로그용 슬라이더 정의 배열(없으면 슬라이더 자동생성 안 함)
 //              [{ key, label, min, max, step, suffix }]
+//   editor   : 복합 커스텀 UI 종류("levels" | "curves"). 있으면 다이얼로그가 전용 에디터를 띄운다.
 //   apply    : ImageData 를 in-place 보정(adjustments.js 위임)
 //
-// (레벨/커브 같은 복합 UI는 sliders 로 표현이 어려우므로 1차 범위에서는 단순 슬라이더형 위주로 제공.
-//  레벨은 입력 검정/감마/흰점 3슬라이더로 근사 제공, 커브는 별도 복합 UI가 필요해 제외하고
-//  대신 "노출(밝기/대비)·색조/채도·반전·흑백·포스터화·한계값"을 기본 제공한다.)
+// (레벨/커브는 sliders 로 표현이 어려운 복합 UI라 editor 로 전용 에디터를 연결한다.
+//  나머지(밝기/대비·색조/채도·반전·흑백·포스터화·한계값)는 슬라이더형으로 제공한다.)
 export const ADJUSTMENT_TYPES = {
   brightnessContrast: {
     label: "밝기/대비",
@@ -47,16 +99,28 @@ export const ADJUSTMENT_TYPES = {
   },
   levels: {
     label: "레벨",
-    defaults: { inB: 0, gamma: 1, inW: 255, outB: 0, outW: 255 },
-    sliders: [
-      { key: "inB", label: "입력 검정", min: 0, max: 254, step: 1 },
-      { key: "gamma", label: "감마", min: 0.1, max: 9.99, step: 0.01 },
-      { key: "inW", label: "입력 흰점", min: 1, max: 255, step: 1 },
-      { key: "outB", label: "출력 검정", min: 0, max: 255, step: 1 },
-      { key: "outW", label: "출력 흰점", min: 0, max: 255, step: 1 },
-    ],
-    // RGB 복합 채널에 일괄 적용(채널별 분리는 별도 채널 팔레트/커브 영역)
-    apply: (img, p) => Adjust.levels(img, "rgb", p.inB ?? 0, p.inW ?? 255, p.gamma ?? 1, p.outB ?? 0, p.outW ?? 255),
+    // 채널별 레벨(rgb/r/g/b/a). 전용 히스토그램 에디터로 편집한다.
+    defaults: defLevelsAll(),
+    editor: "levels",
+    apply: (img, p) => {
+      const all = normalizeLevelsParams(p);
+      for (const ch of LEVELS_CHANNELS) {
+        const s = all[ch];
+        if (!levelIsIdentity(s)) Adjust.levels(img, ch, s.inB, s.inW, s.gamma, s.outB, s.outW);
+      }
+    },
+  },
+  curves: {
+    label: "커브",
+    // 채널별 커브(rgb/r/g/b/a). 전용 곡선 에디터로 편집한다.
+    defaults: defCurvesAll(),
+    editor: "curves",
+    apply: (img, p) => {
+      const all = normalizeCurvesParams(p);
+      for (const ch of LEVELS_CHANNELS) {
+        if (!curveIsIdentity(all[ch])) Adjust.applyChannelLUT(img, ch, Adjust.buildCurveLUT(all[ch]));
+      }
+    },
   },
   posterize: {
     label: "포스터화",
@@ -88,10 +152,16 @@ export const ADJUSTMENT_TYPES = {
   },
 };
 
-// 조정 타입이 파라미터 편집 다이얼로그를 가지는지(슬라이더 정의 유무)
+// 조정 타입이 파라미터 편집 다이얼로그를 가지는지(슬라이더 정의 또는 전용 에디터 유무)
 export function adjustmentHasDialog(type) {
   const meta = ADJUSTMENT_TYPES[type];
-  return !!(meta && meta.sliders && meta.sliders.length);
+  if (!meta) return false;
+  return !!meta.editor || !!(meta.sliders && meta.sliders.length);
+}
+
+// 조정 타입의 전용 에디터 종류("levels" | "curves") 또는 null(슬라이더형).
+export function adjustmentEditor(type) {
+  return ADJUSTMENT_TYPES[type]?.editor || null;
 }
 
 // 조정 타입의 표시 라벨(레이어 이름/메뉴용). 알 수 없으면 "보정".
@@ -99,10 +169,23 @@ export function adjustmentLabel(type) {
   return ADJUSTMENT_TYPES[type]?.label || "보정";
 }
 
-// 조정 타입의 기본 파라미터 사본(원본 메타 공유 방지)
+// 조정 타입의 기본 파라미터 사본(원본 메타 공유 방지).
+// 레벨/커브는 채널별 중첩 객체/배열이므로 깊은 복사로 안전하게 떼어낸다.
 export function defaultParams(type) {
   const meta = ADJUSTMENT_TYPES[type];
-  return meta ? { ...meta.defaults } : {};
+  if (!meta) return {};
+  return cloneParams(meta.defaults);
+}
+
+// 조정 파라미터 깊은 복사(중첩 객체/배열까지). 함수/특수객체는 다루지 않는다(순수 데이터 가정).
+export function cloneParams(p) {
+  if (Array.isArray(p)) return p.map((q) => cloneParams(q));
+  if (p && typeof p === "object") {
+    const o = {};
+    for (const k in p) o[k] = cloneParams(p[k]);
+    return o;
+  }
+  return p;
 }
 
 // 조정 타입의 슬라이더 정의(다이얼로그 빌드용). 없으면 빈 배열.

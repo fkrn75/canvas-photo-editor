@@ -10,7 +10,7 @@ export class OptionsBar {
     app.bus.on(EVT.TOOL_CHANGED, () => this._render());
     app.bus.on(EVT.STATE_CHANGED, ({ key }) => {
       // 브러시 종류가 바뀌면 경도 표시 여부가 달라지므로 옵션바를 다시 구성한다
-      if (key === "brushType" || key === "shapeType" || key === "dodgeBurnMode") this._render();
+      if (key === "brushType" || key === "shapeType" || key === "dodgeBurnMode" || key === "penMode") this._render();
       else this._updaters[key]?.();
     });
     this._render();
@@ -162,7 +162,14 @@ export class OptionsBar {
         this._hint("먼저 영역을 선택 → 선택 안을 잡고 깨끗한 영역으로 드래그하여 치환.");
         break;
       case TOOL.PEN:
-        this._hint("클릭=앵커 추가, 드래그=곡선 핸들, 시작점 클릭=닫기, 앵커 클릭=삭제. 패스 패널에서 선택/채우기/획.");
+        this._select("모드", "penMode", [
+          ["path", "표준 펜"], ["freeform", "자유곡선"],
+        ]);
+        if (this.app.state.penMode === "freeform") {
+          this._hint("드래그=자유곡선 패스 생성. 시작점 근처에서 놓으면 닫힘.");
+        } else {
+          this._hint("클릭=앵커, 드래그=곡선 핸들, 시작점 클릭=닫기, 앵커 클릭=삭제, Alt+앵커=코너↔곡선 변환. 패스 패널에서 선택/채우기/획.");
+        }
         break;
       case TOOL.HISTORYBRUSH: {
         this._slider("크기", "brushSize", 1, 500, 1, "px");
@@ -201,6 +208,29 @@ export class OptionsBar {
         this._slider("경도", "brushHardness", 0, 1, 0.01, "%", 100);
         this._slider("불투명도", "patternOpacity", 0, 1, 0.01, "%", 100);
         this._checkbox("정렬", "patternAligned");
+        break;
+      }
+      case TOOL.ARTHISTORY: {
+        this._slider("크기", "brushSize", 1, 500, 1, "px");
+        this._slider("불투명도", "brushOpacity", 0, 1, 0.01, "%", 100);
+        this._select("스타일", "artHistoryStyle", [
+          ["tight", "타이트"], ["loose", "느슨"], ["curl", "말림"],
+        ]);
+        this._slider("길이", "artHistoryLength", 2, 64, 1, "px");
+        const snaps = this.app.historyPanel?.snapshots || [];
+        if (snaps.length === 0) {
+          this._hint("히스토리 팔레트에서 스냅샷을 만든 뒤 사용하세요.");
+        } else {
+          const g = this._group();
+          const lb = document.createElement("label"); lb.textContent = "소스"; g.appendChild(lb);
+          const sel = document.createElement("select");
+          snaps.forEach((s, i) => { const o = document.createElement("option"); o.value = i; o.textContent = s.name; sel.appendChild(o); });
+          let cur = this.app.state.historyBrushSource ?? 0;
+          if (cur >= snaps.length) cur = snaps.length - 1;
+          sel.value = cur;
+          sel.addEventListener("change", () => this.app.state.set("historyBrushSource", parseInt(sel.value, 10)));
+          g.appendChild(sel);
+        }
         break;
       }
       default:

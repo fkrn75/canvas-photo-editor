@@ -136,6 +136,100 @@ export class PathManager {
     else this._changed();
   }
 
+  // ── Convert Point (앵커 코너 ↔ 부드러운 곡선 전환) ──
+  // 어떤 앵커가 "코너"인지 판정(양쪽 핸들이 모두 앵커와 같은 좌표면 코너).
+  isCornerAnchor(anchor) {
+    if (!anchor) return true;
+    const inCorner = anchor.inX === anchor.x && anchor.inY === anchor.y;
+    const outCorner = anchor.outX === anchor.x && anchor.outY === anchor.y;
+    return inCorner && outCorner;
+  }
+
+  // 앵커를 코너 ↔ 부드러운 곡선으로 토글한다(포토샵 Convert Point Tool).
+  //   - 곡선(핸들 있음) → 코너 : 양쪽 핸들 제거(앵커 좌표로 접음).
+  //   - 코너(핸들 없음) → 곡선 : 이웃 앵커 방향에 맞춰 대칭 핸들을 자동 생성.
+  // 반환: 전환 후 코너 여부(true=코너가 됨).
+  convertAnchor(path, index) {
+    const a = path?.anchors[index];
+    if (!a) return null;
+    if (this.isCornerAnchor(a)) {
+      this.smoothAnchor(path, index);   // 코너 → 부드럽게
+      this._changed();
+      return false;
+    }
+    // 곡선 → 코너: 핸들을 앵커로 접는다.
+    a.inX = a.x; a.inY = a.y;
+    a.outX = a.x; a.outY = a.y;
+    this._changed();
+    return true;
+  }
+
+  // 한 앵커에 "부드러운" 대칭 핸들을 자동 부여한다.
+  // 핸들 방향 = (이전 앵커 → 다음 앵커) 접선, 길이 = 이웃까지 거리의 1/3(Catmull-Rom 유사).
+  // 패스 양끝(이웃이 한쪽뿐)이나 닫힌 패스의 경계도 자연스럽게 처리한다.
+  smoothAnchor(path, index, tension = 1 / 3) {
+    const A = path?.anchors;
+    if (!A) return;
+    const a = A[index];
+    if (!a) return;
+    // 닫힌 패스면 인덱스를 순환시켜 양 이웃을 항상 확보한다.
+    const prev = this._neighbor(A, index, -1, path.closed);
+    const next = this._neighbor(A, index, +1, path.closed);
+    if (!prev && !next) return;        // 앵커 1개뿐 → 곡선화 의미 없음
+
+    // 접선 방향: 양 이웃이 있으면 (prev→next), 한쪽뿐이면 그 이웃 방향.
+    let tx, ty;
+    if (prev && next) { tx = next.x - prev.x; ty = next.y - prev.y; }
+    else if (next) { tx = next.x - a.x; ty = next.y - a.y; }
+    else { tx = a.x - prev.x; ty = a.y - prev.y; }
+    const tlen = Math.hypot(tx, ty) || 1;
+    const ux = tx / tlen, uy = ty / tlen;     // 단위 접선
+
+    // out 핸들 길이 = 다음 이웃까지 거리 × tension, in 핸들 = 이전 이웃까지 거리 × tension.
+    const outLen = next ? Math.hypot(next.x - a.x, next.y - a.y) * tension : tlen * tension;
+    const inLen = prev ? Math.hypot(a.x - prev.x, a.y - prev.y) * tension : tlen * tension;
+    a.outX = a.x + ux * outLen; a.outY = a.y + uy * outLen;
+    a.inX = a.x - ux * inLen; a.inY = a.y - uy * inLen;
+  }
+
+  // 인덱스 기준 이웃 앵커 반환. 열린 패스는 경계 밖이면 null,
+  // 닫힌 패스는 순환(wrap)해서 반대편 끝 앵커를 돌려준다.
+  _neighbor(A, index, dir, closed) {
+    let i = index + dir;
+    if (i < 0) return closed ? A[A.length - 1] : null;
+    if (i >= A.length) return closed ? A[0] : null;
+    return A[i];
+  }
+
+  // ── Freeform 펜 (자유곡선 → 자동 패스) ──
+  // 드래그 중 호출: 직전 점에서 minDist(월드) 이상 떨어졌을 때만 코너 앵커로 누적한다.
+  // (앵커는 일단 코너로 찍고, 드래그 종료 시 finishFreeform에서 한꺼번에 부드럽게 만든다.)
+  addFreeformPoint(x, y, minDist) {
+    const p = this.ensureCurrent();
+    const A = p.anchors;
+    if (A.length > 0) {
+      const last = A[A.length - 1];
+      if (Math.hypot(x - last.x, y - last.y) < minDist) return null; // 너무 촘촘하면 무시
+    }
+    const a = { x, y, inX: x, inY: y, outX: x, outY: y };
+    A.push(a);
+    this._changed();
+    return a;
+  }
+
+  // Freeform 드래그 종료: 누적된 코너 앵커 열에 부드러운 핸들을 일괄 부여한다.
+  // 양끝 앵커는 코너로 둬(열린 곡선 끝이 튀지 않게), 중간 앵커만 곡선화한다.
+  finishFreeform(path) {
+    const target = path || this.current;
+    if (!target) return;
+    const A = target.anchors;
+    if (A.length < 3) { this._changed(); return; } // 점 2개 이하면 직선 그대로 둔다
+    const start = target.closed ? 0 : 1;
+    const end = target.closed ? A.length : A.length - 1;
+    for (let i = start; i < end; i++) this.smoothAnchor(target, i);
+    this._changed();
+  }
+
   // 현재 패스 닫기(시작점과 끝점 연결).
   closeCurrent() {
     const p = this.current;

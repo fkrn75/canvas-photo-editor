@@ -70,11 +70,33 @@ export class AppState {
     // 히스토리 브러시(history-brush-tool.js)
     this.historyBrushSource = 0;   // 복원 소스로 쓸 스냅샷 인덱스
 
+    // 브러시 동역학(brush-dynamics.js / brushes-panel.js)
+    this.dynShape = false;        // 모양 동역학 on/off
+    this.shapeSizeJitter = 0.5;   // 0~1 크기 지터
+    this.shapeAngleJitter = 0.5;  // 0~1 각도 지터(방향성 모양)
+    this.dynScatter = false;      // 흩뿌림 on/off
+    this.scatterAmount = 0.6;     // 0~1 흩뿌림 양
+    this.scatterCount = 3;        // 1~16 한 점당 스탬프 수
+    this.dynColor = false;        // 색상 동역학 on/off
+    this.colorFgBgJitter = 0.5;   // 0~1 전경↔배경 변동
+    this.colorHueJitter = 0;      // 0~1 색조 지터
+    this.colorSatJitter = 0;      // 0~1 채도 지터
+    this.colorBriJitter = 0;      // 0~1 명도 지터
+    this.dynDual = false;         // 듀얼 브러시 on/off
+    this.dualType = "spatter";    // spatter | chalk | dots | noise
+    this.dualDensity = 0.5;       // 0~1 2차 텍스처 밀도
+    // 아트 히스토리 브러시(art-history-brush-tool.js) — 소스는 historyBrushSource 재사용
+    this.artHistoryStyle = "tight"; // tight | loose | curl
+    this.artHistoryLength = 16;     // 스트로크 길이(px)
+
     // 패턴 도장(pattern-stamp-tool.js)
     this.patterns = buildDefaultPatterns();  // [{id,name,tile(canvas)}]
     this.patternIndex = 0;          // 현재 패턴
     this.patternOpacity = 1;        // 0~1
     this.patternAligned = true;     // 패턴 원점 문서(0,0) 고정
+
+    // 펜 도구 모드 (pen-tool.js): path=표준 펜, freeform=자유곡선
+    this.penMode = "path";
 
     // 사각형 선택 도구 모드 (marquee-tool.js)
     this.marqueeMode = "rect";  // rect | ellipse | row | col

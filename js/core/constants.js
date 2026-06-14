@@ -42,6 +42,7 @@ export const TOOL = {
   SHAPELAYER: "shapelayer",
   HEALING: "healing",
   PATCH: "patch",
+  ARTHISTORY: "arthistory",
 };
 
 // 도형 종류

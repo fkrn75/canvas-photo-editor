@@ -5,17 +5,27 @@
 //     lighten은 픽셀별 최댓값을 취하므로, 스탬프가 겹쳐도 강도가 누적되지 않는다(=부드러운 가장자리 보존).
 //  2) 매 프레임 "stroke 시작 전 스냅샷"을 복원한 뒤, 마스크 밝기를 잉크 알파로 환산해 색을 입혀 합성한다.
 // 이렇게 하면 한 stroke 안의 중첩이 불투명도/부드러움을 망가뜨리지 않는다.
+//
+// [브러시 동역학] (브러시 도구 한정 — 연필/지우개는 영향 없음)
+//   brush-dynamics.js 엔진을 통해 스탬프마다 크기/각도/위치/색을 변조한다.
+//   - 동역학 OFF, 또는 연필/지우개: 위의 단색-마스크 경로를 그대로 탄다(완전한 기존 동작, 회귀 없음).
+//   - Shape/Scatter만 ON: 단색-마스크 경로 안에서 점(dot)의 크기/각도/위치만 흔든다(_stampDynamicMask).
+//   - Color/Dual ON: 스탬프마다 색·질감이 달라지므로 "스탬프별 채색 경로"로 분기한다(_strokeLayer 사용).
+//       각 dab은 flow 알파로 stroke 레이어에 source-over 누적되고, stroke 전체를 opacity로 한 번에 합성한다
+//       (포토샵의 flow↔opacity 분리와 동일 — stroke 내 중첩은 쌓이되 stroke 총량은 opacity로 상한).
 
 import { BaseTool } from "./base-tool.js";
 import { hexToRgb } from "../engine/color.js";
 import { newBounds, expandBounds, boundsToBox, clampBox, cropImageData } from "../engine/imagedata.js";
 import { MaskPaintCommand } from "../history/commands/layer-structure-command.js";
+import { BrushDynamics } from "../engine/brush-dynamics.js";
 
 export class PaintTool extends BaseTool {
   constructor(app, id) {
     super(app, id);
     this.drawing = false;
     this._hover = null;
+    this.dyn = new BrushDynamics(this.state); // 브러시 동역학 엔진(브러시 도구에서만 사용)
   }
 
   get cursor() { return "none"; } // 브러시 원형 커서를 직접 그린다
@@ -52,6 +62,14 @@ export class PaintTool extends BaseTool {
     this.p = this._params();
     this.bounds = newBounds();
 
+    // ── 브러시 동역학 활성 판정 ──
+    // 동역학은 "브러시" 도구에만 적용(연필/지우개는 순수 유지).
+    // 또한 색을 다루는 동역학(Color/Dual)은 마스크(그레이) 편집/빠른마스크에서는 의미가 없으므로
+    // 그 경우엔 색 경로를 끄고 Shape/Scatter만 단색 경로에서 처리한다.
+    this.dynOn = this.id === "brush" && this.dyn.isActive();
+    this.perStampColor = this.dynOn && this.dyn.needsPerStampColor() && !this.targetMask;
+    if (this.dynOn) this.dyn.reset(); // stroke마다 난수열 초기화
+
     // 대상 컨텍스트 + 변경 전 스냅샷(undo용)
     this.targetCtx = this.quickMaskTarget ? this.app.quickMask.ctx
                    : (this.targetMask ? layer.maskCtx : layer.ctx);
@@ -75,6 +93,21 @@ export class PaintTool extends BaseTool {
     this.mctx.fillRect(0, 0, layer.width, layer.height);
     if (this.selection?.active) this.selection.applyClipPath(this.mctx); // 선택 영역으로 제한
     this.mctx.globalCompositeOperation = "lighten";
+
+    // ── 스탬프별 채색 경로 준비 ──
+    if (this.perStampColor) {
+      // 색 dab을 누적할 stroke 레이어(투명 시작). 선택 영역 클립 적용.
+      this.strokeLayer = document.createElement("canvas");
+      this.strokeLayer.width = layer.width;
+      this.strokeLayer.height = layer.height;
+      this.sctx = this.strokeLayer.getContext("2d", { willReadFrequently: true });
+      if (this.selection?.active) { this.sctx.save(); this.selection.applyClipPath(this.sctx); this._strokeClipped = true; }
+      else this._strokeClipped = false;
+      // Dual Brush 2차 텍스처 마스크(없으면 null)
+      this.dualMask = this.dyn.buildDualMask(layer.width, layer.height,
+        this.selection?.active ? (c) => this.selection.applyClipPath(c) : null);
+      this.dualCtx = this.dualMask ? this.dualMask.getContext("2d", { willReadFrequently: true }) : null;
+    }
 
     this.last = pt;
     this._stamp(pt, pt);
@@ -118,11 +151,14 @@ export class PaintTool extends BaseTool {
 
     this.mask = null; this.mctx = null; this.before = null; this.layer = null;
     this.targetCtx = null; this.targetMask = false; this.quickMaskTarget = false;
+    this.strokeLayer = null; this.sctx = null; this.dualMask = null; this.dualCtx = null;
+    this.perStampColor = false; this.dynOn = false;
   }
 
   onLeave() { this._hover = null; this.app.renderer.requestRender(); }
 
-  // a→b 구간을 거리 기반으로 보간하며 마스크에 스탬프를 찍는다
+  // a→b 구간을 거리 기반으로 보간하며 스탬프를 찍는다.
+  // 동역학 경로에 따라 단색-마스크(_dot) 또는 스탬프별 채색(_colorDab)으로 분기한다.
   _stamp(a, b) {
     const r = Math.max(0.5, this.p.size / 2);
     const dist = Math.hypot(b.x - a.x, b.y - a.y);
@@ -132,22 +168,35 @@ export class PaintTool extends BaseTool {
       const t = i / n;
       const x = a.x + (b.x - a.x) * t;
       const y = a.y + (b.y - a.y) * t;
-      this._dot(x, y, r);
-      expandBounds(this.bounds, x, y, r + 2);
+
+      if (!this.dynOn) {
+        // ── 기존 경로(동역학 OFF) : 중심에 기본 크기 한 번 ──
+        this._dot(x, y, r);
+        expandBounds(this.bounds, x, y, r + 2);
+      } else {
+        // ── 동역학 ON : 엔진이 만든 스탬프 목록대로 ──
+        const stamps = this.dyn.stampsAt(x, y, r, this.p.rgb);
+        for (const sp of stamps) {
+          if (this.perStampColor) this._colorDab(sp);
+          else this._dot(sp.x, sp.y, sp.r, sp.angle); // Shape/Scatter만: 단색 마스크에 변조 점
+          expandBounds(this.bounds, sp.x, sp.y, sp.r + 2);
+        }
+      }
     }
   }
 
   // 마스크에 흰색(=강도) 스탬프. 색/지우기는 _composite에서 처리.
-  _dot(x, y, r) {
+  // angle: 동역학 각도 지터(라디안). 방향성 있는 모양(square/calligraphy)에만 적용.
+  _dot(x, y, r, angle = 0) {
     const ctx = this.mctx;
     ctx.globalAlpha = 1;
     switch (this.p.brushType) {
       case "square":
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+        if (angle) { ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.fillStyle = "#fff"; ctx.fillRect(-r, -r, r * 2, r * 2); ctx.restore(); }
+        else { ctx.fillStyle = "#fff"; ctx.fillRect(x - r, y - r, r * 2, r * 2); }
         break;
       case "calligraphy":
-        ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 4);
+        ctx.save(); ctx.translate(x, y); ctx.rotate(angle - Math.PI / 4);
         ctx.fillStyle = "#fff";
         ctx.beginPath(); ctx.ellipse(0, 0, r, Math.max(0.5, r * 0.34), 0, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
@@ -188,6 +237,67 @@ export class PaintTool extends BaseTool {
     }
   }
 
+  // 스탬프별 채색 dab — stroke 레이어에 색을 직접 누적(flow=경도 기반 알파).
+  // sp = { x, y, r, angle, color:{r,g,b} }
+  _colorDab(sp) {
+    const ctx = this.sctx;
+    const { r: cr, g: cg, b: cb } = sp.color;
+    const r = sp.r;
+    // flow: 한 dab의 불투명도. 경도가 낮으면 가장자리가 부드럽게 빠지는 radial로 표현.
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    const hard = this.p.hardness;
+    if (hard >= 1 || this.p.brushType !== "round") {
+      // 단단하거나 비원형: 균일 알파 채색(모양은 _paintShape에서)
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},1)`;
+      this._paintShape(ctx, sp.x, sp.y, r, sp.angle, `rgba(${cr},${cg},${cb},1)`);
+    } else {
+      const inner = Math.max(0.001, r * hard);
+      const grd = ctx.createRadialGradient(sp.x, sp.y, inner, sp.x, sp.y, r);
+      grd.addColorStop(0, `rgba(${cr},${cg},${cb},1)`);
+      grd.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+      ctx.fillStyle = grd;
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, r, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+
+    // Dual Brush: 2차 텍스처 강도를 같은 위치에 누적(나중에 stroke 레이어 알파에 곱한다)
+    if (this.dualCtx) this.dyn.stampDualTexture(this.dualCtx, sp.x, sp.y, r);
+  }
+
+  // 채색 경로용 모양 그리기(원/사각/캘리/스패터/분필). 단색 _dot의 색 버전.
+  _paintShape(ctx, x, y, r, angle, fill) {
+    ctx.fillStyle = fill;
+    switch (this.p.brushType) {
+      case "square":
+        ctx.save(); ctx.translate(x, y); if (angle) ctx.rotate(angle); ctx.fillRect(-r, -r, r * 2, r * 2); ctx.restore();
+        break;
+      case "calligraphy":
+        ctx.save(); ctx.translate(x, y); ctx.rotate(angle - Math.PI / 4);
+        ctx.beginPath(); ctx.ellipse(0, 0, r, Math.max(0.5, r * 0.34), 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        break;
+      case "spatter": {
+        const n = Math.max(5, Math.round(r * 1.6));
+        for (let i = 0; i < n; i++) {
+          const a = this.dyn.rng() * Math.PI * 2, rad = this.dyn.rng() * r;
+          const dr = Math.max(0.5, r * 0.14 * this.dyn.rng());
+          ctx.beginPath(); ctx.arc(x + Math.cos(a) * rad, y + Math.sin(a) * rad, dr, 0, Math.PI * 2); ctx.fill();
+        }
+        break;
+      }
+      case "chalk": {
+        const n = Math.max(10, Math.round(r * r * 0.6));
+        for (let i = 0; i < n; i++) {
+          const a = this.dyn.rng() * Math.PI * 2, rad = Math.sqrt(this.dyn.rng()) * r;
+          ctx.fillRect(Math.round(x + Math.cos(a) * rad), Math.round(y + Math.sin(a) * rad), 1, 1);
+        }
+        break;
+      }
+      default: // round 단단
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
   // 마스크(강도) → 색/지우기로 변환해 대상(레이어 픽셀 또는 레이어 마스크, 변경 영역만)에 합성
   _composite() {
     const ctx = this.targetCtx;        // 레이어 픽셀 ctx 또는 마스크 ctx
@@ -195,6 +305,12 @@ export class PaintTool extends BaseTool {
     const box = boundsToBox(this.bounds);
     const cb = box && clampBox(box, this.layer.width, this.layer.height);
     if (!cb) { this.app.renderer.requestRender(); return; }
+
+    // ── 스탬프별 채색 경로: stroke 레이어를 opacity로 한 번에 얹는다(flow↔opacity 분리) ──
+    if (this.perStampColor) {
+      this._compositeColor(cb);
+      return;
+    }
 
     const m = this.mctx.getImageData(cb.x, cb.y, cb.w, cb.h).data;
     const out = ctx.getImageData(cb.x, cb.y, cb.w, cb.h);
@@ -240,6 +356,38 @@ export class PaintTool extends BaseTool {
           od[i + 3] = 255 * a + srcA * ia;
         }
       }
+    }
+    ctx.putImageData(out, cb.x, cb.y);
+    this.layer.thumbDirty = true;
+    this.app.renderer.requestRender();
+  }
+
+  // 스탬프별 채색 합성: stroke 레이어(색 dab 누적)를 레이어 픽셀 위에 opacity로 알파 합성.
+  // Dual Brush가 있으면 stroke 알파에 2차 텍스처 강도를 곱해 질감을 입힌다.
+  _compositeColor(cb) {
+    const ctx = this.targetCtx;
+    const out = ctx.getImageData(cb.x, cb.y, cb.w, cb.h);
+    const od = out.data;
+    const sd = this.sctx.getImageData(cb.x, cb.y, cb.w, cb.h).data; // stroke 레이어(색+알파)
+    const dual = this.dualCtx ? this.dualCtx.getImageData(cb.x, cb.y, cb.w, cb.h).data : null;
+    const op = this.p.opacity;
+    const lockT = this.layer.lockTransparency;
+
+    for (let i = 0; i < sd.length; i += 4) {
+      let a = (sd[i + 3] / 255) * op; // dab 누적 알파 × 전체 opacity
+      if (dual) a *= dual[i] / 255;   // Dual Brush 질감 강도 곱
+      if (a <= 0) continue;
+      const srcA = od[i + 3];
+      if (lockT) {
+        if (srcA <= 0) continue;
+        a = a * (srcA / 255);
+      }
+      const ia = 1 - a;
+      // stroke 레이어 색은 프리멀티플라이가 아니므로(source-over로 누적된 평색) 그대로 사용.
+      od[i]     = sd[i]     * a + od[i] * ia;
+      od[i + 1] = sd[i + 1] * a + od[i + 1] * ia;
+      od[i + 2] = sd[i + 2] * a + od[i + 2] * ia;
+      od[i + 3] = 255 * a + srcA * ia;
     }
     ctx.putImageData(out, cb.x, cb.y);
     this.layer.thumbDirty = true;

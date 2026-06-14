@@ -27,6 +27,7 @@ const ICONS = {
   [TOOL.SHAPELAYER]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="13" height="13" rx="1" fill="currentColor" stroke="none" opacity="0.35"/><rect x="3" y="4" width="13" height="13" rx="1"/><circle cx="16" cy="17" r="2.2" fill="#fff"/></svg>`,
   [TOOL.HEALING]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6-9 9H5v-6z"/><path d="M9 9l-4 4 6 6 4-4"/><path d="M3 21h6"/></svg>`,
   [TOOL.PATCH]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-dasharray="3 2"><path d="M5 5h9l5 5v9H5z"/></svg>`,
+  [TOOL.ARTHISTORY]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 2.6-6.3"/><path d="M3 4v4h4"/><path d="M9 14c1.5-2 3-2 4.5 0s3 2 4.5 0"/></svg>`,
 };
 
 const LAYOUT = [
@@ -53,6 +54,7 @@ const LAYOUT = [
   { id: TOOL.PATTERNSTAMP, name: "패턴 도장 (Y)" },
   { id: TOOL.HEALING, name: "복구 브러시 (K)" },
   { id: TOOL.PATCH, name: "패치 (C)" },
+  { id: TOOL.ARTHISTORY, name: "아트 히스토리 브러시 (F)" },
 ];
 
 export class Toolbar {
