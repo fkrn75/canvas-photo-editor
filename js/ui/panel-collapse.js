@@ -1,7 +1,8 @@
-// panel-collapse.js — 우측 패널 접기/펴기.
-// 각 패널의 .panel-head(제목 영역)를 클릭하면 그 패널을 접어 헤더만 남기고,
-// 다시 클릭하면 편다. 접힌 패널 id 목록을 localStorage에 저장해 새로고침 후에도 유지한다.
-// 이벤트 위임(.rightpanel 한 곳에 바인딩)이라 각 패널 내용이 동적으로 다시 그려져도 동작한다.
+// panel-collapse.js — 패널 접기/펴기.
+// 각 패널의 .panel-head(제목 영역)를 클릭하면 그 패널을 접어 헤더만 남기고, 다시 클릭하면 편다.
+// 접힌 패널 id 목록을 localStorage에 저장해 새로고침 후에도 유지한다.
+// ② 패널 도킹 도입 후: 패널이 우측/좌측/하단 도크·플로팅 어디로 옮겨가도 동작해야 하므로
+//   이벤트 위임을 document(전역)에 걸고, 저장/복원도 document 전체에서 .panel을 찾는다.
 
 const LS_KEY = "cpe.collapsedPanels";
 
@@ -15,9 +16,9 @@ function load() {
   }
 }
 
-// 현재 접힌 패널 id 목록을 localStorage에 저장.
-function save(rightpanel) {
-  const ids = [...rightpanel.querySelectorAll(".panel.collapsed")]
+// 현재 접힌 패널 id 목록을 localStorage에 저장(컨테이너 무관, 문서 전체 스캔).
+function saveAll() {
+  const ids = [...document.querySelectorAll(".panel.collapsed")]
     .map((p) => p.id)
     .filter(Boolean);
   try {
@@ -27,24 +28,24 @@ function save(rightpanel) {
   }
 }
 
-// 우측 패널에 접기 동작을 설치한다. app 생성 시 1회 호출.
-export function initPanelCollapse(rightpanel) {
-  if (!rightpanel) return;
+// 접기 동작을 설치한다. app 생성 시 1회 호출(root는 보통 document — 모든 도크/플로팅을 포괄).
+export function initPanelCollapse(root) {
+  if (!root) return;
 
-  // 1) 저장된 접힘 상태 복원
+  // 1) 저장된 접힘 상태 복원(패널이 어느 컨테이너에 있든 document 전역에서 찾는다)
   for (const id of load()) {
-    const p = rightpanel.querySelector("#" + CSS.escape(id));
-    if (p) p.classList.add("collapsed");
+    const p = document.getElementById(id);
+    if (p && p.classList.contains("panel")) p.classList.add("collapsed");
   }
 
   // 2) 헤더 클릭 토글(이벤트 위임). 헤더 안의 조작 요소(버튼/입력 등)는 접기 대상에서 제외.
-  rightpanel.addEventListener("click", (e) => {
+  root.addEventListener("click", (e) => {
     const head = e.target.closest(".panel-head");
-    if (!head || !rightpanel.contains(head)) return;
+    if (!head) return;
     if (e.target.closest("button, input, select, textarea, a")) return;
     const panel = head.closest(".panel");
     if (!panel || !panel.id) return;
     panel.classList.toggle("collapsed");
-    save(rightpanel);
+    saveAll();
   });
 }

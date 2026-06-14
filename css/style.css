@@ -16,6 +16,8 @@
   --danger: #b5483d;
   --toolbar-w: 50px;
   --right-w: 240px;
+  --left-w: 0px;            /* 좌측 도크 폭(② 기본 0=빈 도크). panel-dock이 동적 갱신 */
+  --bottom-h: 0px;          /* 하단 도크 높이(② 기본 0). panel-dock이 동적 갱신 */
   --menubar-h: 30px;
   --options-h: 38px;
   --status-h: 24px;
@@ -110,9 +112,19 @@ html, body {
 /* ===== 본문 레이아웃 ===== */
 .main {
   display: grid;
-  grid-template-columns: var(--toolbar-w) 1fr var(--right-w);
+  grid-template-columns: var(--toolbar-w) var(--left-w) 1fr var(--right-w);
+  grid-template-rows: 1fr var(--bottom-h);
+  grid-template-areas:
+    "tool left view  right"
+    "btm  btm  btm   btm";
   min-height: 0;
+  position: relative;       /* 스플리터(.splitter) 절대배치 기준 */
 }
+.toolcolumn  { grid-area: tool; }
+.dock-left   { grid-area: left; }
+.viewport    { grid-area: view; }
+.rightpanel  { grid-area: right; }
+.dock-bottom { grid-area: btm; }
 
 /* ===== 좌측 툴바 ===== */
 .toolcolumn {
@@ -263,6 +275,56 @@ html, body {
 #layers-panel { flex: 2 1 auto; min-height: 300px; }
 #tool-presets-panel { flex: 0 0 auto; max-height: 240px; border-bottom: 1px solid var(--border); }
 #file-browser-panel { flex: 0 0 auto; max-height: 200px; border-bottom: 1px solid var(--border); }
+
+/* ===== ② 패널 도킹/플로팅 ===== */
+/* 좌/하단 도킹 컨테이너: 우측 패널과 같은 패널 스택. 비면(.empty) grid 트랙이 0이라 보이지 않음 */
+.dock-left, .dock-bottom {
+  background: var(--bg-panel);
+  display: flex; flex-direction: column;
+  min-width: 0; min-height: 0;
+  overflow: auto;
+}
+.dock-left { border-right: 1px solid var(--border); }
+.dock-bottom { flex-direction: row; border-top: 1px solid var(--border); }   /* 하단은 패널을 가로로 나열 */
+.dock-bottom > .panel { flex: 1 1 0; min-width: 180px; border-right: 1px solid var(--border); }
+.dock-left.empty, .dock-bottom.empty { overflow: hidden; }                   /* 빈 도크: 내용 없음(트랙도 0) */
+
+/* 플로팅 레이어: 플로팅 패널을 담는다. 자식이 position:fixed라 레이어 자체는 0크기·이벤트 통과 */
+.float-layer { position: fixed; left: 0; top: 0; width: 0; height: 0; pointer-events: none; z-index: 500; }
+.float-layer > .panel { pointer-events: auto; }
+
+/* 플로팅된 패널: left/top/width/height는 panel-float.js가 인라인으로 부여. 여기선 외형만 */
+.panel.floating {
+  z-index: 510;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
+  border: 1px solid var(--border-light);
+  background: var(--bg-panel);
+  resize: both; overflow: hidden;            /* 우하단 리사이즈 */
+  min-width: 160px; min-height: 80px;
+}
+/* 헤더 복귀버튼(⤓): 플로팅 → 도킹 복귀 */
+.float-dock-btn {
+  font-size: 12px; line-height: 1.2; padding: 0 5px; margin-left: 4px;
+  background: none; border: none; color: var(--text-dim); cursor: pointer;
+}
+.float-dock-btn:hover { color: var(--accent); }
+
+/* 드롭존 하이라이트: 드래그 중 놓을 위치를 반투명 띠로 표시(위치는 dock-zones.js가 인라인으로 잡음) */
+.dock-zone-hint {
+  background: rgba(45, 125, 154, .28);        /* var(--accent) 반투명 */
+  border: 1px solid var(--accent);
+  z-index: 520; pointer-events: none;
+}
+.dock-zone-hint--float {                       /* float 존: 영역 전체 점선 테두리만 */
+  background: transparent; border: 2px dashed var(--accent);
+}
+
+/* 도크 경계 스플리터: panel-splitter.js가 .main에 생성. .main(position:relative) 기준 절대배치 */
+.splitter { position: absolute; z-index: 400; }
+.splitter:hover, .splitter.dragging { background: var(--accent); }
+.splitter-right  { top: 0; bottom: 0; right: var(--right-w); width: 6px; margin-right: -3px; cursor: col-resize; }
+.splitter-left   { top: 0; bottom: 0; left: calc(var(--toolbar-w) + var(--left-w)); width: 6px; margin-left: -3px; cursor: col-resize; }
+.splitter-bottom { left: 0; right: 0; bottom: var(--bottom-h); height: 6px; margin-bottom: -3px; cursor: row-resize; }
 
 /* 레이어 옵션(불투명도/혼합) — 한 줄 가로 배치, 좁으면 가로 스크롤(세로 공간 최소화) */
 .layer-options {

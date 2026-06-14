@@ -21,6 +21,9 @@
         <div id="colorbox" class="colorbox"></div>
       </div>
 
+      <!-- 좌측 도킹존(② 기본 비어있음; 패널을 끌어다 놓으면 채워진다. panel-dock이 data-dock으로 식별) -->
+      <div class="dock dock-left empty" data-dock="left"></div>
+
       <!-- 중앙 캔버스 뷰포트 -->
       <div id="viewport" class="viewport">
         <!-- 합성 결과가 그려지는 표시 캔버스 -->
@@ -32,7 +35,7 @@
       </div>
 
       <!-- 우측 패널: 레이어(위, 가장 자주 사용) + 기타 + 최근 이미지(아래). 각 패널 헤더 클릭으로 접기/펴기(panel-collapse.js) -->
-      <div class="rightpanel">
+      <div class="rightpanel dock" data-dock="right">
         <div id="layers-panel" class="panel"></div>
         <div id="swatches-panel" class="panel"></div>
         <div id="styles-panel" class="panel"></div>
@@ -46,6 +49,9 @@
         <div id="tool-presets-panel" class="panel"></div>
         <div id="file-browser-panel" class="panel"></div>
       </div>
+
+      <!-- 하단 도킹존(② 기본 비어있음) -->
+      <div class="dock dock-bottom empty" data-dock="bottom"></div>
     </div>
 
     <!-- 하단 상태바 (app.js가 갱신) -->
@@ -56,6 +62,9 @@
       <span id="status-msg" class="status-msg"></span>
     </div>
   </div>
+
+  <!-- 플로팅 패널을 담는 레이어(② 패널 플로팅). 패널 자체가 position:fixed라 위치는 무관 -->
+  <div class="float-layer"></div>
 
   <!-- 숨겨진 파일 선택 입력 (file-io.js가 사용) -->
   <input type="file" id="file-input" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" hidden multiple>

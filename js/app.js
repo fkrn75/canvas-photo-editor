@@ -40,7 +40,7 @@ import { FileBrowserPanel } from "./ui/file-browser-panel.js";
 import { NotesManager } from "./notes/notes-manager.js";
 import { NotesOverlay } from "./ui/notes-overlay.js";
 import { initPanelCollapse } from "./ui/panel-collapse.js";
-import { initPanelDrag } from "./ui/panel-drag.js";
+import { initPanelDock } from "./ui/panel-dock.js";
 
 class App {
   constructor() {
@@ -86,10 +86,10 @@ class App {
     this.notesOverlay = new NotesOverlay(this);   // 노트 마커+팝업 DOM 오버레이
     this.menuBar = new MenuBar(this, document.getElementById("menubar"));
 
-    // 우측 패널 접기/펴기 설치(각 패널 헤더 클릭으로 토글, localStorage 영속)
-    initPanelCollapse(document.querySelector(".rightpanel"));
-    // 우측 패널 순서 드래그 재배치(각 패널 헤더를 끌어 위/아래 이동, localStorage 영속)
-    initPanelDrag(document.querySelector(".rightpanel"));
+    // 패널 접기/펴기 설치(헤더 클릭 토글, localStorage 영속) — document 위임이라 모든 도크/플로팅 포괄
+    initPanelCollapse(document);
+    // 패널 도킹/플로팅 + 순서 드래그 조율자 설치(② 자유 배치, localStorage 영속)
+    initPanelDock(document.querySelector(".main"));
 
     this._bindStatus();
     this._bindGlobalKeys();
