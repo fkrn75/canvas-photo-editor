@@ -40,6 +40,7 @@ import { FileBrowserPanel } from "./ui/file-browser-panel.js";
 import { NotesManager } from "./notes/notes-manager.js";
 import { NotesOverlay } from "./ui/notes-overlay.js";
 import { initPanelCollapse } from "./ui/panel-collapse.js";
+import { initPanelDrag } from "./ui/panel-drag.js";
 
 class App {
   constructor() {
@@ -87,6 +88,8 @@ class App {
 
     // 우측 패널 접기/펴기 설치(각 패널 헤더 클릭으로 토글, localStorage 영속)
     initPanelCollapse(document.querySelector(".rightpanel"));
+    // 우측 패널 순서 드래그 재배치(각 패널 헤더를 끌어 위/아래 이동, localStorage 영속)
+    initPanelDrag(document.querySelector(".rightpanel"));
 
     this._bindStatus();
     this._bindGlobalKeys();
