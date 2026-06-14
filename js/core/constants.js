@@ -33,6 +33,9 @@ export const TOOL = {
   TEXT: "text",
   HAND: "hand",
   ZOOM: "zoom",
+  CLONE: "clone",
+  DODGEBURN: "dodgeburn",
+  RETOUCH: "retouch",
 };
 
 // 도형 종류

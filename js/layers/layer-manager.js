@@ -8,6 +8,7 @@ import {
   blendLayerOnto, normalizeBlendMode,
   buildEffectiveSource, clipAlphaByAlpha,
 } from "../engine/blend.js";
+import { applyLayerStyles } from "./layer-styles.js";
 import {
   AddLayerCommand, RemoveLayerCommand, MoveLayerCommand,
   MergeDownCommand, DuplicateLayerCommand, LayerPropCommand,
@@ -246,6 +247,16 @@ export class LayerManager {
   _blendOneLayer(ctx, layer, baseAlphaCanvas) {
     // 1) 마스크 휘도 + fillOpacity를 알파에 곱한 유효 소스 캔버스 생성(없으면 null=원본 사용)
     let eff = buildEffectiveSource(layer);
+
+    // 1.5) 레이어 스타일: eff(없으면 원본 복사)에 효과를 합성한 새 캔버스로 교체(비파괴)
+    if (layer.styles) {
+      if (!eff) {
+        eff = document.createElement("canvas");
+        eff.width = this.width; eff.height = this.height;
+        eff.getContext("2d", { willReadFrequently: true }).drawImage(layer.canvas, 0, 0);
+      }
+      eff = applyLayerStyles(eff, layer.styles);
+    }
 
     // 2) 클리핑: 베이스 알파로 추가 마스킹. eff가 없으면(=마스크/fill 모두 없음) 원본을 복사해 만든다.
     if (baseAlphaCanvas) {

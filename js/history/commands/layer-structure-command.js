@@ -50,6 +50,7 @@ export class DuplicateLayerCommand {
       this.copy.lockTransparency = !!src.lockTransparency;
       this.copy.lockImage = !!src.lockImage;
       this.copy.lockPosition = !!src.lockPosition;
+      this.copy.styles = src.styles ? JSON.parse(JSON.stringify(src.styles)) : null;
       // 마스크 복사(있으면 그레이스케일 캔버스 통째 복제)
       if (src.mask) {
         const m = document.createElement("canvas");
@@ -203,7 +204,7 @@ export class LayerPropCommand {
     this.label = {
       visible: "레이어 표시 전환", opacity: "불투명도 변경",
       name: "레이어 이름 변경", blendMode: "블렌드 모드 변경",
-      fillOpacity: "채우기 불투명도 변경", clipped: "클리핑 마스크",
+      fillOpacity: "채우기 불투명도 변경", clipped: "클리핑 마스크", styles: "레이어 스타일",
       lockTransparency: "투명 영역 잠금", lockImage: "이미지 잠금", lockPosition: "위치 잠금",
     }[prop] || "레이어 속성";
   }

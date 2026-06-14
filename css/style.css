@@ -243,6 +243,18 @@ html, body {
 }
 .layer-toolbar button { flex: none; }
 
+/* 히스토리 패널 */
+#history-panel { flex: 1; min-height: 0; border-bottom: 1px solid var(--border); }
+.history-step:hover { background: var(--bg-panel-2); }
+.history-step.active:hover { background: var(--accent); }
+.history-snap-row:hover { background: var(--bg-panel-2); }
+.history-snap-thumb canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
+.history-toolbar button { flex: 1; }
+
+/* 레이어 스타일 fx 버튼 */
+.layer-fx { font-size:10px; font-style:italic; padding:0 4px; color:var(--text-dim,#999); cursor:pointer; user-select:none; }
+.layer-fx.on { color:#5ab0ff; font-weight:700; }
+
 /* ===== 상태바 ===== */
 .statusbar {
   display: flex; align-items: center; gap: 16px;

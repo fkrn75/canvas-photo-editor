@@ -2,6 +2,7 @@
 
 import { EVT } from "../core/constants.js";
 import { BLEND_MODES } from "../engine/blend.js";
+import { openLayerStyle } from "./layer-style-dialog.js";
 
 export class LayersPanel {
   constructor(app, el) {
@@ -193,6 +194,17 @@ export class LayersPanel {
       name.textContent = (layer.clipped ? "↳ " : "") + layer.name;
       name.addEventListener("dblclick", () => this._rename(layer, name));
 
+      // fx 버튼: 레이어 스타일 편집 진입(스타일 있으면 강조 표시)
+      const fxBtn = document.createElement("div");
+      fxBtn.className = "layer-fx" + (layer.styles ? " on" : "");
+      fxBtn.textContent = "fx";
+      fxBtn.title = "레이어 스타일";
+      fxBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        lm.setActive(layer.id);
+        openLayerStyle(this.app);
+      });
+
       // 잠금 상태 표시 아이콘(요약)
       const locks = document.createElement("div");
       locks.className = "layer-locks";
@@ -201,7 +213,7 @@ export class LayersPanel {
 
       row.append(vis, thumb);
       if (maskThumb) row.append(maskThumb);
-      row.append(name, locks);
+      row.append(name, fxBtn, locks);
       row.addEventListener("click", () => lm.setActive(layer.id));
       this.list.appendChild(row);
     }

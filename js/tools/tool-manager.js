@@ -14,12 +14,16 @@ import { WandTool } from "./wand-tool.js";
 import { HandTool } from "./hand-tool.js";
 import { GradientTool } from "./gradient-tool.js";
 import { ZoomTool } from "./zoom-tool.js";
+import { CloneStampTool } from "./clone-stamp-tool.js";
+import { DodgeBurnTool } from "./dodge-burn-tool.js";
+import { BlurSharpenSmudgeTool } from "./blur-sharpen-smudge-tool.js";
 
 // 단일 키 도구 단축키 (g는 버킷↔그라디언트 슬롯 순환이라 아래 keydown에서 별도 처리)
 const KEYMAP = {
   v: TOOL.MOVE, m: TOOL.MARQUEE, l: TOOL.LASSO, w: TOOL.WAND,
   b: TOOL.BRUSH, n: TOOL.PENCIL, e: TOOL.ERASER,
   i: TOOL.EYEDROPPER, u: TOOL.SHAPE, t: TOOL.TEXT, h: TOOL.HAND, z: TOOL.ZOOM,
+  s: TOOL.CLONE, o: TOOL.DODGEBURN, r: TOOL.RETOUCH,
 };
 
 function isTyping(e) {
@@ -57,6 +61,9 @@ export class ToolManager {
     this.tools[TOOL.WAND] = new WandTool(a, TOOL.WAND);
     this.tools[TOOL.HAND] = new HandTool(a, TOOL.HAND);
     this.tools[TOOL.ZOOM] = new ZoomTool(a, TOOL.ZOOM);
+    this.tools[TOOL.CLONE] = new CloneStampTool(a, TOOL.CLONE);
+    this.tools[TOOL.DODGEBURN] = new DodgeBurnTool(a, TOOL.DODGEBURN);
+    this.tools[TOOL.RETOUCH] = new BlurSharpenSmudgeTool(a, TOOL.RETOUCH);
   }
 
   setTool(id) {

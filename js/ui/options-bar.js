@@ -10,7 +10,7 @@ export class OptionsBar {
     app.bus.on(EVT.TOOL_CHANGED, () => this._render());
     app.bus.on(EVT.STATE_CHANGED, ({ key }) => {
       // 브러시 종류가 바뀌면 경도 표시 여부가 달라지므로 옵션바를 다시 구성한다
-      if (key === "brushType" || key === "shapeType") this._render();
+      if (key === "brushType" || key === "shapeType" || key === "dodgeBurnMode") this._render();
       else this._updaters[key]?.();
     });
     this._render();
@@ -108,6 +108,36 @@ export class OptionsBar {
         break;
       case TOOL.HAND:
         this._hint("드래그하여 화면을 이동합니다. (스페이스로 임시 전환 가능)");
+        break;
+      case TOOL.CLONE:
+        this._slider("크기", "brushSize", 1, 500, 1, "px");
+        this._slider("경도", "brushHardness", 0, 1, 0.01, "%", 100);
+        this._slider("불투명도", "cloneOpacity", 0, 1, 0.01, "%", 100);
+        this._checkbox("정렬", "cloneAligned");
+        this._hint("Alt+클릭=소스 지정 후 드래그하여 복제.");
+        break;
+      case TOOL.DODGEBURN:
+        this._select("모드", "dodgeBurnMode", [
+          ["dodge", "닷지(밝게)"], ["burn", "번(어둡게)"], ["sponge", "스펀지(채도)"],
+        ]);
+        this._slider("크기", "brushSize", 1, 500, 1, "px");
+        this._slider("경도", "brushHardness", 0, 1, 0.01, "%", 100);
+        this._slider("노출", "dodgeExposure", 0, 1, 0.01, "%", 100);
+        if (this.app.state.dodgeBurnMode === "sponge") {
+          this._checkbox("채도 증가", "spongeSaturate");
+        } else {
+          this._select("범위", "dodgeRange", [
+            ["shadows", "어두운 영역"], ["midtones", "중간 영역"], ["highlights", "밝은 영역"],
+          ]);
+        }
+        break;
+      case TOOL.RETOUCH:
+        this._select("모드", "retouchMode", [
+          ["blur", "흐리게"], ["sharpen", "선명하게"], ["smudge", "번짐"],
+        ]);
+        this._slider("크기", "brushSize", 1, 500, 1, "px");
+        this._slider("경도", "brushHardness", 0, 1, 0.01, "%", 100);
+        this._slider("강도", "retouchStrength", 0, 1, 0.01, "%", 100);
         break;
       default:
         this._hint("도구를 선택하세요.");

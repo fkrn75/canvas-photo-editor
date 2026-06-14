@@ -45,6 +45,20 @@ export class AppState {
     this.gradientOpacity = 1;            // 0~1
     this.gradientBlendMode = "normal";
 
+    // 복제 도장(clone-stamp-tool.js)
+    this.cloneAligned = true;   // 정렬: stroke 간 소스 오프셋 유지
+    this.cloneOpacity = 1;      // 0~1
+
+    // 닷지/번/스펀지(dodge-burn-tool.js)
+    this.dodgeBurnMode = "dodge";   // dodge | burn | sponge
+    this.dodgeRange = "midtones";   // shadows | midtones | highlights (dodge/burn)
+    this.dodgeExposure = 0.5;       // 0~1
+    this.spongeSaturate = true;     // sponge: true=채도↑, false=채도↓
+
+    // 흐리게/선명/번짐(blur-sharpen-smudge-tool.js)
+    this.retouchMode = "blur";      // blur | sharpen | smudge
+    this.retouchStrength = 0.5;     // 0~1
+
     // 사각형 선택 도구 모드 (marquee-tool.js)
     this.marqueeMode = "rect";  // rect | ellipse | row | col
 

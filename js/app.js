@@ -16,12 +16,14 @@ import { ColorPanel } from "./ui/color-panel.js";
 import { OptionsBar } from "./ui/options-bar.js";
 import { LayersPanel } from "./ui/layers-panel.js";
 import { SwatchesPanel } from "./ui/swatches-panel.js";
+import { HistoryPanel } from "./ui/history-panel.js";
 import { MenuBar } from "./ui/menu-bar.js";
 import { Dialogs } from "./ui/dialogs.js";
 import { DocumentTransformCommand } from "./history/commands/document-command.js";
 import { FlattenCommand } from "./history/commands/layer-structure-command.js";
 import { openColorRange, openSaveSelection, openLoadSelection } from "./ui/select-dialogs.js";
 import { QuickMask } from "./selection/quick-mask.js";
+import { FreeTransform } from "./transform/free-transform.js";
 
 class App {
   constructor() {
@@ -42,6 +44,7 @@ class App {
     this.fileIO = new FileIO(this);
     this.clipboard = new Clipboard(this);
     this.dialogs = new Dialogs(this);
+    this.freeTransform = new FreeTransform(this);   // 자유 변형(Ctrl+T)
 
     // UI 패널
     this.toolbar = new Toolbar(this, document.getElementById("toolbar"));
@@ -49,6 +52,7 @@ class App {
     this.optionsBar = new OptionsBar(this, document.getElementById("optionsbar"));
     this.layersPanel = new LayersPanel(this, document.getElementById("layers-panel"));
     this.swatchesPanel = new SwatchesPanel(this, document.getElementById("swatches-panel"));
+    this.historyPanel = new HistoryPanel(this, document.getElementById("history-panel"));
     this.menuBar = new MenuBar(this, document.getElementById("menubar"));
 
     this._bindStatus();
@@ -448,6 +452,7 @@ class App {
         else if (k === "e") { e.preventDefault(); this.layers.mergeDown(); }
         else if (k === "g") { e.preventDefault(); this.layers.toggleClip(); }
         else if (k === "r") { e.preventDefault(); this.toggleRulers(); }
+        else if (k === "t") { e.preventDefault(); this.freeTransform.start(); }
         else if (k === "c" && !typing) { e.preventDefault(); this.clipboard.copy(); }
         else if (k === "0") { e.preventDefault(); this.viewport.fit(this.layers.width, this.layers.height); }
         else if (k === "1") { e.preventDefault(); this.viewport.actualSize(this.layers.width, this.layers.height); }
@@ -457,6 +462,10 @@ class App {
       }
 
       if (typing) return;
+      if (this.freeTransform.active) {
+        if (e.key === "Enter") { e.preventDefault(); this.freeTransform.commit(); return; }
+        if (e.key === "Escape") { e.preventDefault(); this.freeTransform.cancel(); return; }
+      }
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); this.deleteSelection(); }
     });
   }

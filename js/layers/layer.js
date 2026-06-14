@@ -26,6 +26,7 @@ export class Layer {
     this.lockTransparency = false; // 투명 영역 잠금(기존 알파>0 영역만 칠함)
     this.lockImage = false;        // 이미지 픽셀 잠금(페인팅 차단)
     this.lockPosition = false;     // 위치 잠금(이동 차단)
+    this.styles = null;            // 레이어 스타일(layer-styles.js). null=없음
   }
 
   get width() { return this.canvas.width; }

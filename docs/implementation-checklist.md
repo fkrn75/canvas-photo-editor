@@ -46,7 +46,16 @@
 - [x] **Save for Web**: PNG/JPEG·품질 슬라이더·미리보기·예상 용량·다운로드 *(검증: 모달 컨트롤 정상)*
 - [x] **Swatches 팔레트**: 기본 14견본 + 현재색 추가/우클릭 삭제/초기화, 클릭=전경색, localStorage 영속 *(검증: 클릭→#000/#f00, 강조)*
 
-**🟡 중급 전체 완료.** 다음 분기점: **🟠 고급**(Pen/패스 · 벡터 타입 · 레이어 스타일 · Free Transform · 힐링/클론 · Liquify · Actions) — **진입 전 사용자 확인 필요.**
+**🟡 중급 전체 완료.**
+
+### iteration 4 완료 (🟠 고급 1차) — 전부 8124 런타임 검증, 콘솔 에러 0
+
+- [x] **리터칭 도구**: 복제 도장(S) · 닷지/번/스펀지(O) · 흐리게/선명/번짐(R) *(검증: dodge 128→223·burn→32·sponge 무채색·blur 경계혼합·smudge 끌림·clone 복제)*
+- [x] **자유 변형(Free Transform, Ctrl+T)**: 8핸들 Scale/Rotate/Skew/Distort/Perspective, Enter 확정·Esc 취소 *(검증: start→active·commit→해제, 19/19 단위 + 통합 무에러)*
+- [x] **레이어 스타일**: Drop Shadow / Outer Glow / Stroke(안·가운데·바깥) / Color Overlay, 비파괴 합성 + fx 버튼/다이얼로그 *(검증: 4효과 픽셀 정확)*
+- [x] **히스토리 팔레트**(작업 내역): 스텝 클릭 점프 + 스냅샷 *(검증: 스텝 렌더·무한루프 없음)*
+
+**다음 분기점: 🟠 고급 잔여** — Pen 도구/패스 · 벡터 마스크/셰이프 레이어 · 벡터 텍스트(재편집)+Character/Paragraph · 조정 레이어 · 채널 팔레트 · Healing/Patch · Pattern Stamp · History Brush · Blur/Sharpen/Smudge는 완료 · Liquify · Pattern Maker · Actions(매크로) · 이미지 모드 변환. **다음 iteration에서 계속.**
 
 > ⚠️ 알려진 한계(후속): 이미지 크기/자르기/회전/뒤집기 시 레이어 마스크가 함께 변형되지 않음(캔버스 크기 변경은 동기화됨). 🟠 진입 전/후속 iteration에서 app.js 변형부에 마스크 동반 처리 예정.
 
@@ -142,22 +151,22 @@
 - [ ] **벡터 텍스트 레이어**(재편집 가능) + **Character/Paragraph 팔레트** + Warp Text + 안티앨리어스 모드
 
 ### 레이어 고급
-- [ ] **레이어 스타일**: Drop Shadow / Inner Shadow / Outer Glow / Inner Glow / Bevel and Emboss / Satin / Color·Gradient·Pattern Overlay / Stroke + Styles 팔레트
+- [◐] **레이어 스타일**: Drop Shadow / Outer Glow / Stroke / Color Overlay 구현 *(iter4)*. (Inner Shadow/Glow · Bevel/Emboss · Satin · Gradient/Pattern Overlay · Styles 팔레트는 후속)
 - [ ] **조정 레이어**(비파괴 보정 + 마스크)
 - [ ] **채널 팔레트** UI(채널별 LUT 엔진은 이미 존재)
 
 ### 히스토리
-- [ ] **히스토리 팔레트**(단계 목록 클릭 이동) + **스냅샷** + Step Forward/Backward UI
+- [x] **히스토리 팔레트**(단계 목록 클릭 이동) + **스냅샷** *(iter4)* + Step Forward/Backward UI
 
 ### 리터칭 · 페인팅 도구
 - [ ] Healing Brush / Patch (7.0 간판 기능)
-- [ ] Clone Stamp / Pattern Stamp
+- [◐] Clone Stamp *(iter4)* / Pattern Stamp(후속)
 - [ ] History Brush / Art History Brush
-- [ ] Dodge / Burn / Sponge
-- [ ] Blur / Sharpen / Smudge (도구형)
+- [x] Dodge / Burn / Sponge *(iter4)*
+- [x] Blur / Sharpen / Smudge (도구형) *(iter4)*
 
 ### 변형 · 자르기
-- [ ] **Free Transform**(핸들 UI): Scale / Rotate / Skew / Distort / Perspective
+- [x] **Free Transform**(핸들 UI): Scale / Rotate / Skew / Distort / Perspective *(iter4)*
 - [ ] Crop 도구(드래그 핸들·Shield) / Trim / Reveal All
 
 ### 필터 · 자동화

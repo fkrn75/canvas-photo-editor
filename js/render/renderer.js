@@ -103,6 +103,8 @@ export class Renderer {
     this.app.selection?.drawOverlay(ctx, vp);
     const tool = this.app.tools?.active;
     if (tool && tool.drawOverlay) tool.drawOverlay(ctx, vp);
+    // 자유 변형 바운딩박스/핸들 오버레이(화면 좌표계)
+    if (this.app.freeTransform?.active) this.app.freeTransform.drawOverlay(ctx, vp);
 
     // 6.5) 빠른 마스크 오버레이(비선택 영역 빨강 반투명) — 문서 좌표계로 합성
     const qm = this.app.quickMask;
