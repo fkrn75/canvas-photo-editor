@@ -50,6 +50,50 @@ export class SelectionManager {
       [[{ x: x0, y: y0 }, { x: x1, y: y0 }, { x: x1, y: y1 }, { x: x0, y: y1 }]]);
   }
 
+  // 타원 선택: 드래그 사각형(x,y,w,h)에 내접하는 타원. 안티에일리어싱 가장자리는
+  // 임시 캔버스의 알파를 0~255 부분선택 마스크로 그대로 보존한다(페더처럼 부드러운 경계).
+  setEllipse(x, y, w, h) {
+    const W = this.app.layers.width, H = this.app.layers.height;
+    if (w < 1 || h < 1) { this.clear(); return; }
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const g = c.getContext("2d", { willReadFrequently: true });
+    g.fillStyle = "#fff";
+    g.beginPath();
+    // ellipse(cx, cy, rx, ry, ...) — 사각형 중심·반지름으로 내접 타원을 그린다
+    g.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+    g.fill();
+    const data = g.getImageData(0, 0, W, H).data;
+    const mask = new Uint8Array(W * H);
+    let minX = W, minY = H, maxX = -1, maxY = -1;
+    for (let i = 0; i < W * H; i++) {
+      const a = data[i * 4 + 3];
+      if (a > 0) {
+        mask[i] = a; // 알파(0~255)를 선택 강도로 사용 → 부드러운 가장자리
+        const px = i % W, py = (i / W) | 0;
+        if (px < minX) minX = px; if (py < minY) minY = py;
+        if (px > maxX) maxX = px; if (py > maxY) maxY = py;
+      }
+    }
+    if (maxX < 0) { this.clear(); return; }
+    // 외곽선은 마칭앤츠용으로 마스크에서 추출(임계 128 → 타원 윤곽)
+    const bounds = { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    this._commit(mask, bounds, this._outlineFromMask(mask, bounds, 128));
+  }
+
+  // 단일 행/열 선택: row=클릭한 y행 전체(폭=문서폭, 높이 1px),
+  // col=클릭한 x열 전체(높이=문서높이, 폭 1px). 포토샵 한 줄 선택 도구와 동일.
+  setRowCol(mode, x, y) {
+    const W = this.app.layers.width, H = this.app.layers.height;
+    if (mode === "row") {
+      const yy = Math.max(0, Math.min(H - 1, Math.round(y)));
+      this.setRect(0, yy, W, 1);
+    } else { // col
+      const xx = Math.max(0, Math.min(W - 1, Math.round(x)));
+      this.setRect(xx, 0, 1, H);
+    }
+  }
+
   // 폴리곤(올가미) 선택: 임시 캔버스에 채운 뒤 알파를 마스크로 추출
   setPolygon(points) {
     const W = this.app.layers.width, H = this.app.layers.height;
@@ -323,6 +367,46 @@ export class SelectionManager {
       out[i] = on ? 255 : 0;
     }
     this._commitMask(out);
+  }
+
+  // Stroke 헬퍼: 현재 선택 경계를 따라 폭 width(px)의 "테두리 마스크"(Uint8Array 0/255)를
+  // 만들어 반환한다. 선택 자체는 바꾸지 않는다(외곽선 fill 전용).
+  //   position: "inside"  = 경계 안쪽으로만 width
+  //             "outside" = 경계 바깥쪽으로만 width
+  //             "center"  = 안/밖으로 각각 width/2 (포토샵 중앙 정렬)
+  // border()와 같은 거리 변환을 쓰되, 안/밖 폭을 위치에 맞춰 비대칭으로 적용한다.
+  // 반환: {mask, bounds} 또는 테두리가 비면 {mask:null, bounds:null}.
+  strokeMaskFromSelection(width, position = "center") {
+    if (!this.mask) return { mask: null, bounds: null };
+    const w = Math.max(1, Math.round(width));
+    const W = this.app.layers.width, H = this.app.layers.height;
+    const bin = this._binarize(128);
+    // 안/밖으로 칠할 폭 결정
+    let inAmt, outAmt;
+    if (position === "inside") { inAmt = w; outAmt = 0; }
+    else if (position === "outside") { inAmt = 0; outAmt = w; }
+    else { inAmt = Math.ceil(w / 2); outAmt = Math.floor(w / 2); } // center
+
+    const inv = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) inv[i] = bin[i] ? 0 : 1;
+    const distIn = inAmt > 0 ? this._distanceToOutside(bin, W, H) : null;  // 내부→경계 거리
+    const distOut = outAmt > 0 ? this._distanceToOutside(inv, W, H) : null; // 배경→경계 거리
+
+    const out = new Uint8Array(W * H);
+    let minX = W, minY = H, maxX = -1, maxY = -1;
+    for (let i = 0; i < W * H; i++) {
+      let on = false;
+      if (bin[i]) { if (distIn && distIn[i] <= inAmt) on = true; }      // 안쪽 테두리
+      else { if (distOut && distOut[i] <= outAmt) on = true; }          // 바깥쪽 테두리
+      if (on) {
+        out[i] = 255;
+        const x = i % W, y = (i / W) | 0;
+        if (x < minX) minX = x; if (y < minY) minY = y;
+        if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+      }
+    }
+    if (maxX < 0) return { mask: null, bounds: null };
+    return { mask: out, bounds: { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 } };
   }
 
   // Smooth(radius): 선택 경계를 둥글게. 거리 변환 기반 open→close 근사.

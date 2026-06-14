@@ -17,6 +17,7 @@ const ICONS = {
   [TOOL.SHAPE]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="1"/></svg>`,
   [TOOL.TEXT]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5h14M12 5v14M9 19h6"/></svg>`,
   [TOOL.HAND]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12V6.5a1.5 1.5 0 0 1 3 0V11M10 11V4.5a1.5 1.5 0 0 1 3 0V11M13 11V5.5a1.5 1.5 0 0 1 3 0V12M16 8.5a1.5 1.5 0 0 1 3 0V14c0 4-2.5 7-6.5 7S7 19 5.5 16.5L4 14a1.5 1.5 0 0 1 2.6-1.5L7.5 14"/></svg>`,
+  [TOOL.ZOOM]: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M8 11h6M11 8v6"/></svg>`,
 };
 
 const LAYOUT = [
@@ -33,6 +34,7 @@ const LAYOUT = [
   { id: TOOL.SHAPE, name: "도형 (U)" },
   { id: TOOL.TEXT, name: "텍스트 (T)" },
   { id: TOOL.HAND, name: "손 (H)" },
+  { id: TOOL.ZOOM, name: "돋보기 (Z)" },
 ];
 
 export class Toolbar {

@@ -36,9 +36,19 @@
 - [x] **고급 선택** — 색상 범위(스포이드+허용치) / 확대(Grow) / 유사 영역(Similar) / 선택 저장·불러오기 *(검증: fromColorMatch mask 생성)*
 - [x] **눈금자(Ctrl+R) / 그리드 / 가이드**(표시·새 가이드·지우기) *(검증: 토글·렌더 무에러)*
 
-**다음 분기점 (iteration 3, 🟡 잔여)**: Quick Mask · Stroke · Save for Web · Swatches 확장 · Marquee 타원/단일행·열 · Shape 다각형 · Zoom 도구 분리. 그다음 🟠 고급 진입 전 확인.
+### iteration 3 완료 (🟡 중급 + 🟢 잔여 종료) — 전부 8124 런타임 검증, 콘솔 에러 0
 
-> ⚠️ 알려진 한계(후속): 이미지 크기/자르기/회전/뒤집기 시 레이어 마스크가 함께 변형되지 않음(캔버스 크기 변경은 동기화됨). iteration 3에서 app.js 변형부에 마스크 동반 처리 예정.
+- [x] **Marquee 확장**: 타원 · 단일 행 · 단일 열 (옵션바 모양 선택) *(검증: 타원 중심255·모서리0, 행/열 on255·off0)*
+- [x] **Shape 확장**: 정다각형(변 수 3~12) · 둥근 사각형(모서리 반경) *(검증: polygon 빨강 채움, rounded 중심 파랑·둥근 모서리 비움)*
+- [x] **Zoom 도구 분리**(Z): 클릭 확대 · Alt+클릭 축소 · 드래그 영역 줌 *(검증: 0.235→0.294 / →0.188)*
+- [x] **Stroke**(선택 윤곽): 폭/색/위치(안쪽·가운데·바깥쪽), 히스토리 연동 *(검증: 테두리 마스크 bounds 정확)*
+- [x] **Quick Mask 모드**(Q): 빨강 반투명 오버레이 페인팅 ↔ 선택 환원 *(검증: 토글 enter/exit, 오버레이 800×600)*
+- [x] **Save for Web**: PNG/JPEG·품질 슬라이더·미리보기·예상 용량·다운로드 *(검증: 모달 컨트롤 정상)*
+- [x] **Swatches 팔레트**: 기본 14견본 + 현재색 추가/우클릭 삭제/초기화, 클릭=전경색, localStorage 영속 *(검증: 클릭→#000/#f00, 강조)*
+
+**🟡 중급 전체 완료.** 다음 분기점: **🟠 고급**(Pen/패스 · 벡터 타입 · 레이어 스타일 · Free Transform · 힐링/클론 · Liquify · Actions) — **진입 전 사용자 확인 필요.**
+
+> ⚠️ 알려진 한계(후속): 이미지 크기/자르기/회전/뒤집기 시 레이어 마스크가 함께 변형되지 않음(캔버스 크기 변경은 동기화됨). 🟠 진입 전/후속 iteration에서 app.js 변형부에 마스크 동반 처리 예정.
 
 ---
 
@@ -70,9 +80,9 @@
 
 ## 🟢 핵심(MVP) — 부분구현 보강
 
-- [ ] **Marquee 확장**: 타원형 · 단일 행 · 단일 열 추가 `js/tools/marquee-tool.js`(현재 사각형만)
-- [ ] **Shape 확장**: 다각형(Polygon) · 둥근 사각형 · 커스텀 셰이프 `js/tools/shape-tool.js`(현재 rect/ellipse/line)
-- [ ] **Zoom 도구**: 툴박스 분리(`TOOL.ZOOM` 상수만 존재, tool-manager 미등록)
+- [x] **Marquee 확장**: 타원형 · 단일 행 · 단일 열 추가 `js/tools/marquee-tool.js` *(iter3 완료)*
+- [x] **Shape 확장**: 다각형(Polygon) · 둥근 사각형 `js/tools/shape-tool.js` *(iter3 완료; 커스텀 셰이프는 🟠)*
+- [x] **Zoom 도구**: 툴박스 분리(`TOOL.ZOOM` 등록 + Z 단축키) *(iter3 완료)*
 - [ ] **Text 보강**: 확정 후 재편집(현재 래스터 확정 후 수정 불가) → 텍스트 레이어 데이터 보존
 
 ---
@@ -97,7 +107,7 @@
 ### 도구
 - [ ] **Gradient 도구** ⭐: `js/tools/gradient-tool.js` 신설, `TOOL.GRADIENT` 추가
   - [ ] Linear/Radial(+ Angle/Reflected/Diamond), 전경→배경/전경→투명, Reverse/Dither, 옵션바
-- [ ] **Stroke**(선택영역 외곽선 그리기) — Edit 메뉴
+- [x] **Stroke**(선택영역 외곽선 그리기) — Edit 메뉴 *(iter3 완료)*
 
 ### 선택
 - [ ] **Inverse**(Shift+Ctrl+I) — ⚠️ 미구현 (명세서엔 오기였음)
@@ -106,7 +116,7 @@
 - [ ] **Grow / Similar** (인접·전체 유사색)
 - [ ] **Color Range**(색상 기준 선택)
 - [ ] **Save/Load Selection**(알파 채널 ↔ 선택)
-- [ ] **Quick Mask 모드**(Q)
+- [x] **Quick Mask 모드**(Q) *(iter3 완료)*
 
 ### 보정 (메뉴 연결)
 - [ ] **Channel Mixer UI** — 엔진(`adjustments.channelMixer`) 이미 완성, **다이얼로그만 연결**하면 됨 (가성비 최고)
@@ -119,8 +129,8 @@
 
 ### 기타
 - [ ] **눈금자/가이드/그리드** (`state.pixelGrid` 필드만 존재, 렌더러 미사용)
-- [ ] **Save for Web** 다이얼로그(포맷/품질/미리보기)
-- [ ] **Swatches 팔레트** 확장(견본 추가/삭제/라이브러리)
+- [x] **Save for Web** 다이얼로그(포맷/품질/미리보기) *(iter3 완료)*
+- [x] **Swatches 팔레트** 확장(견본 추가/삭제/초기화·localStorage) *(iter3 완료)*
 
 ---
 

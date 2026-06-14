@@ -6,6 +6,8 @@ import { openLevels, openCurves } from "./channel-dialogs.js";
 import { openColorBalance, openThreshold, openPosterize, openGradientMap, openChannelMixer } from "./adjust-dialogs.js";
 import { openUnsharpMask, openMotionBlur, openMedian, openMosaic, openHighPass } from "./filter-dialogs.js";
 import { EVT } from "../core/constants.js";
+import { openStroke } from "./stroke-dialog.js";
+import { openSaveForWeb } from "./save-for-web.js";
 
 export class MenuBar {
   constructor(app, el) {
@@ -25,6 +27,8 @@ export class MenuBar {
         { sep: true },
         { label: "PNG로 저장", shortcut: "Ctrl+S", fn: () => a.fileIO.save("png") },
         { label: "JPG로 저장", fn: () => a.fileIO.save("jpg") },
+        { sep: true },
+        { label: "웹용으로 저장…", fn: () => openSaveForWeb(a) },
       ]},
       { title: "편집", items: [
         { label: "실행 취소", shortcut: "Ctrl+Z", fn: () => a.history.undo() },
@@ -35,6 +39,9 @@ export class MenuBar {
         { sep: true },
         { label: "전경색으로 채우기", fn: () => a.fillSelection(a.state.foreground) },
         { label: "배경색으로 채우기", fn: () => a.fillSelection(a.state.background) },
+        { label: "선택 윤곽(Stroke)…", fn: () => openStroke(a) },
+        { sep: true },
+        { label: "빠른 마스크 전환", shortcut: "Q", fn: () => a.quickMask.toggle() },
         { sep: true },
         { label: "모두 선택", shortcut: "Ctrl+A", fn: () => a.selectAll() },
         { label: "불투명 영역 선택", fn: () => a.selectOpaque() },

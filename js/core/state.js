@@ -25,10 +25,12 @@ export class AppState {
     this.contiguous = true;    // 인접 영역만(true) / 전체(false)
 
     // 도형 옵션
-    this.shapeType = "rect";   // rect | ellipse | line
+    this.shapeType = "rect";   // rect | ellipse | line | polygon | rounded
     this.shapeFill = true;
     this.shapeStroke = false;
     this.shapeStrokeWidth = 3;
+    this.polygonSides = 5;      // 정다각형 변 수 (3~12)
+    this.cornerRadius = 10;     // 둥근 사각형 모서리 반경(px)
 
     // 텍스트 옵션
     this.fontSize = 36;
@@ -42,6 +44,9 @@ export class AppState {
     this.gradientReverse = false;
     this.gradientOpacity = 1;            // 0~1
     this.gradientBlendMode = "normal";
+
+    // 사각형 선택 도구 모드 (marquee-tool.js)
+    this.marqueeMode = "rect";  // rect | ellipse | row | col
 
     // 보기 옵션
     this.pixelGrid = false;    // 고배율에서 픽셀 또렷하게

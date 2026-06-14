@@ -15,11 +15,13 @@ import { Toolbar } from "./ui/toolbar.js";
 import { ColorPanel } from "./ui/color-panel.js";
 import { OptionsBar } from "./ui/options-bar.js";
 import { LayersPanel } from "./ui/layers-panel.js";
+import { SwatchesPanel } from "./ui/swatches-panel.js";
 import { MenuBar } from "./ui/menu-bar.js";
 import { Dialogs } from "./ui/dialogs.js";
 import { DocumentTransformCommand } from "./history/commands/document-command.js";
 import { FlattenCommand } from "./history/commands/layer-structure-command.js";
 import { openColorRange, openSaveSelection, openLoadSelection } from "./ui/select-dialogs.js";
+import { QuickMask } from "./selection/quick-mask.js";
 
 class App {
   constructor() {
@@ -35,6 +37,7 @@ class App {
     this.renderer = new Renderer(this, this.canvas);
     this.history = new CommandManager(this);
     this.selection = new SelectionManager(this);
+    this.quickMask = new QuickMask(this);   // 빠른 마스크 모드 (tools보다 먼저 생성)
     this.tools = new ToolManager(this, this.canvas);
     this.fileIO = new FileIO(this);
     this.clipboard = new Clipboard(this);
@@ -45,6 +48,7 @@ class App {
     this.colorPanel = new ColorPanel(this, document.getElementById("colorbox"));
     this.optionsBar = new OptionsBar(this, document.getElementById("optionsbar"));
     this.layersPanel = new LayersPanel(this, document.getElementById("layers-panel"));
+    this.swatchesPanel = new SwatchesPanel(this, document.getElementById("swatches-panel"));
     this.menuBar = new MenuBar(this, document.getElementById("menubar"));
 
     this._bindStatus();

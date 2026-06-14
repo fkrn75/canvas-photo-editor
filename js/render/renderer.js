@@ -104,6 +104,28 @@ export class Renderer {
     const tool = this.app.tools?.active;
     if (tool && tool.drawOverlay) tool.drawOverlay(ctx, vp);
 
+    // 6.5) 빠른 마스크 오버레이(비선택 영역 빨강 반투명) — 문서 좌표계로 합성
+    const qm = this.app.quickMask;
+    if (qm?.active) {
+      const ov = qm.buildOverlay();
+      if (ov) {
+        // putImageData는 변환을 무시하므로 임시 캔버스에 올린 뒤 줌/팬 적용해 drawImage
+        let oc = this._qmCanvas;
+        if (!oc || oc.width !== ov.width || oc.height !== ov.height) {
+          oc = this._qmCanvas = document.createElement("canvas");
+          oc.width = ov.width; oc.height = ov.height;
+          this._qmCtx = oc.getContext("2d");
+        }
+        this._qmCtx.putImageData(ov, 0, 0);
+        ctx.save();
+        ctx.translate(vp.panX, vp.panY);
+        ctx.scale(vp.zoom, vp.zoom);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(oc, 0, 0);
+        ctx.restore();
+      }
+    }
+
     // 7) 가이드 선(문서 좌표 → 화면). 도구 오버레이 위, 눈금자 아래.
     this._drawGuides(ctx, vp);
 

@@ -36,7 +36,7 @@ export const TOOL = {
 };
 
 // 도형 종류
-export const SHAPE = { RECT: "rect", ELLIPSE: "ellipse", LINE: "line" };
+export const SHAPE = { RECT: "rect", ELLIPSE: "ellipse", LINE: "line", POLYGON: "polygon", ROUNDED_RECT: "rounded" };
 
 // 새 문서 기본 크기
 export const DEFAULT_DOC = { width: 800, height: 600 };

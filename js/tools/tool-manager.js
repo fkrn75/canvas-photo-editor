@@ -13,12 +13,13 @@ import { LassoTool } from "./lasso-tool.js";
 import { WandTool } from "./wand-tool.js";
 import { HandTool } from "./hand-tool.js";
 import { GradientTool } from "./gradient-tool.js";
+import { ZoomTool } from "./zoom-tool.js";
 
 // 단일 키 도구 단축키 (g는 버킷↔그라디언트 슬롯 순환이라 아래 keydown에서 별도 처리)
 const KEYMAP = {
   v: TOOL.MOVE, m: TOOL.MARQUEE, l: TOOL.LASSO, w: TOOL.WAND,
   b: TOOL.BRUSH, n: TOOL.PENCIL, e: TOOL.ERASER,
-  i: TOOL.EYEDROPPER, u: TOOL.SHAPE, t: TOOL.TEXT, h: TOOL.HAND,
+  i: TOOL.EYEDROPPER, u: TOOL.SHAPE, t: TOOL.TEXT, h: TOOL.HAND, z: TOOL.ZOOM,
 };
 
 function isTyping(e) {
@@ -55,6 +56,7 @@ export class ToolManager {
     this.tools[TOOL.LASSO] = new LassoTool(a, TOOL.LASSO);
     this.tools[TOOL.WAND] = new WandTool(a, TOOL.WAND);
     this.tools[TOOL.HAND] = new HandTool(a, TOOL.HAND);
+    this.tools[TOOL.ZOOM] = new ZoomTool(a, TOOL.ZOOM);
   }
 
   setTool(id) {
@@ -148,6 +150,10 @@ export class ToolManager {
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return; // Ctrl 조합은 app이 처리
       const k = e.key.toLowerCase();
+      if (k === "q") { // 빠른 마스크 모드 토글
+        this.app.quickMask?.toggle();
+        e.preventDefault(); return;
+      }
       if (k === "g") { // G 슬롯: 페인트 버킷 ↔ 그라디언트 순환
         this.setTool(this.activeId === TOOL.BUCKET ? TOOL.GRADIENT : TOOL.BUCKET);
         e.preventDefault(); return;

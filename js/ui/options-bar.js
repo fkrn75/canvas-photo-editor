@@ -10,7 +10,7 @@ export class OptionsBar {
     app.bus.on(EVT.TOOL_CHANGED, () => this._render());
     app.bus.on(EVT.STATE_CHANGED, ({ key }) => {
       // 브러시 종류가 바뀌면 경도 표시 여부가 달라지므로 옵션바를 다시 구성한다
-      if (key === "brushType") this._render();
+      if (key === "brushType" || key === "shapeType") this._render();
       else this._updaters[key]?.();
     });
     this._render();
@@ -64,10 +64,18 @@ export class OptionsBar {
         this._checkbox("인접 영역만", "contiguous");
         break;
       case TOOL.SHAPE:
-        this._select("종류", "shapeType", [["rect", "사각형"], ["ellipse", "타원"], ["line", "직선"]]);
+        this._select("종류", "shapeType", [
+          ["rect", "사각형"], ["ellipse", "타원"], ["line", "직선"],
+          ["polygon", "다각형"], ["rounded", "둥근 사각형"],
+        ]);
         this._checkbox("채우기", "shapeFill");
         this._checkbox("외곽선", "shapeStroke");
         this._slider("선 두께", "shapeStrokeWidth", 1, 100, 1, "px");
+        if (this.app.state.shapeType === "polygon") this._slider("변 수", "polygonSides", 3, 12, 1);
+        if (this.app.state.shapeType === "rounded") this._slider("모서리", "cornerRadius", 0, 100, 1, "px");
+        break;
+      case TOOL.ZOOM:
+        this._hint("클릭=확대, Alt+클릭=축소, 드래그=영역 확대.");
         break;
       case TOOL.TEXT:
         this._slider("크기", "fontSize", 6, 300, 1, "px");
@@ -87,7 +95,10 @@ export class OptionsBar {
         this._hint("드래그하여 현재 레이어를 이동합니다. (Shift: 수평/수직 고정)");
         break;
       case TOOL.MARQUEE:
-        this._hint("드래그하여 사각형 영역을 선택합니다. (Ctrl+D 선택 해제)");
+        this._select("모양", "marqueeMode", [
+          ["rect", "사각형"], ["ellipse", "타원"], ["row", "단일 행"], ["col", "단일 열"],
+        ]);
+        this._hint("드래그=사각형/타원 (Shift 정사각, Alt 중심) · 클릭=행/열. Ctrl+D 해제");
         break;
       case TOOL.LASSO:
         this._hint("자유롭게 드래그하여 영역을 선택합니다.");

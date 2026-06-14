@@ -36,8 +36,9 @@ export class PaintTool extends BaseTool {
     const layer = this.ensureLayer();
     if (!layer) return;
 
-    // 편집 대상 결정: 마스크 편집 중이면 마스크 캔버스, 아니면 레이어 픽셀
-    this.targetMask = !!(layer.maskActive && layer.mask);
+    // 편집 대상 결정: 빠른마스크 > 레이어마스크 > 레이어픽셀
+    this.quickMaskTarget = !!this.app.quickMask?.active;
+    this.targetMask = this.quickMaskTarget || !!(layer.maskActive && layer.mask);
 
     // 잠금 검사(마스크 편집에는 레이어 잠금이 적용되지 않음)
     if (!this.targetMask) {
@@ -52,8 +53,12 @@ export class PaintTool extends BaseTool {
     this.bounds = newBounds();
 
     // 대상 컨텍스트 + 변경 전 스냅샷(undo용)
-    this.targetCtx = this.targetMask ? layer.maskCtx : layer.ctx;
-    if (this.targetMask) {
+    this.targetCtx = this.quickMaskTarget ? this.app.quickMask.ctx
+                   : (this.targetMask ? layer.maskCtx : layer.ctx);
+    if (this.quickMaskTarget) {
+      // 빠른 마스크: 선택 환원은 exit에서 하므로 stroke 단위 히스토리는 생략(일시 편집)
+      this.before = this.targetCtx.getImageData(0, 0, layer.width, layer.height);
+    } else if (this.targetMask) {
       // 마스크 직접 편집: 자체 before 스냅샷(히스토리 begin/commit은 레이어 픽셀 전용)
       this.before = layer.maskCtx.getImageData(0, 0, layer.width, layer.height);
     } else {
@@ -94,7 +99,10 @@ export class PaintTool extends BaseTool {
     const box = boundsToBox(this.bounds);
     const label = this.id === "eraser" ? "지우개" : this.id === "pencil" ? "연필" : "브러시";
 
-    if (this.targetMask) {
+    if (this.quickMaskTarget) {
+      // 빠른 마스크 버퍼만 갱신(레이어/히스토리 무관). 화면은 renderer 오버레이가 반영.
+      this.app.renderer.requestRender();
+    } else if (this.targetMask) {
       // 마스크 편집: 변경 영역만 잘라 MaskPaintCommand로 등록
       const layer = this.layer;
       const cb = box && clampBox(box, layer.width, layer.height);
@@ -109,7 +117,7 @@ export class PaintTool extends BaseTool {
     }
 
     this.mask = null; this.mctx = null; this.before = null; this.layer = null;
-    this.targetCtx = null; this.targetMask = false;
+    this.targetCtx = null; this.targetMask = false; this.quickMaskTarget = false;
   }
 
   onLeave() { this._hover = null; this.app.renderer.requestRender(); }
