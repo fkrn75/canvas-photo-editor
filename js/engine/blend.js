@@ -160,6 +160,72 @@ function blendDissolve(backdrop, src, layerOpacity) {
   }
 }
 
+// ── 마스크/클리핑/FillOpacity 통합 헬퍼 ─────────────────────────────────────
+// 레이어 픽셀에 (1) 마스크 휘도, (2) fillOpacity 를 알파에 곱한 "유효 소스 캔버스"를 만든다.
+// 원본 layer.canvas는 건드리지 않는다(비파괴). 둘 다 적용 대상이 없으면 null을 반환해
+// 호출자가 원본 캔버스를 그대로 쓰게 한다(불필요한 복사 방지).
+//
+// 마스크 휘도: ITU-R BT.601(0.299R+0.587G+0.114B). 마스크 픽셀의 알파도 함께 곱해
+// (마스크가 부분 투명일 경우) 자연스럽게 처리한다. 흰=1(불투명 유지) / 검=0(가림).
+export function buildEffectiveSource(layer, scratchCanvas = null) {
+  const mask = (layer.mask && layer.maskEnabled !== false) ? layer.mask : null;
+  const fill = layer.fillOpacity ?? 1;
+  const needMask = !!mask;
+  const needFill = fill < 1;
+  if (!needMask && !needFill) return null; // 적용할 것 없음 → 원본 사용
+
+  const w = layer.canvas.width, h = layer.canvas.height;
+  // 소스 픽셀 복사(원본 보존)
+  const out = layer.ctx
+    ? layer.ctx.getImageData(0, 0, w, h)
+    : layer.canvas.getContext("2d").getImageData(0, 0, w, h);
+  const od = out.data;
+
+  // 마스크 픽셀(크기 동일 가정 — 레이어와 마스크는 항상 문서 크기로 동기화)
+  let md = null;
+  if (needMask) {
+    const mc = layer.maskCtx || mask.getContext("2d", { willReadFrequently: true });
+    md = mc.getImageData(0, 0, w, h).data;
+  }
+
+  for (let i = 0; i < od.length; i += 4) {
+    let a = od[i + 3];
+    if (a === 0) continue; // 이미 투명한 픽셀은 건드릴 것 없음
+    if (needMask) {
+      // 마스크 휘도(0~1) × 마스크 자체 알파(0~1)
+      const lum = (md[i] * 0.299 + md[i + 1] * 0.587 + md[i + 2] * 0.114) / 255;
+      const ma = md[i + 3] / 255;
+      a = a * lum * ma;
+    }
+    if (needFill) a = a * fill;
+    od[i + 3] = a;
+  }
+
+  // 결과를 캔버스에 실어 반환(blendLayerOnto가 canvas/ctx로 읽을 수 있게)
+  const c = scratchCanvas || document.createElement("canvas");
+  if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+  const cc = c.getContext("2d", { willReadFrequently: true });
+  cc.clearRect(0, 0, w, h);
+  cc.putImageData(out, 0, 0);
+  return c;
+}
+
+// destCanvas의 알파를 maskCanvas(클립 베이스)의 알파로 곱한다(in-place, 클리핑 마스크용).
+// 클리핑된 레이어의 합성 결과를 "베이스가 불투명한 곳"으로만 제한할 때 쓴다.
+export function clipAlphaByAlpha(destCanvas, baseAlphaCanvas) {
+  const w = destCanvas.width, h = destCanvas.height;
+  const dctx = destCanvas.getContext("2d", { willReadFrequently: true });
+  const dimg = dctx.getImageData(0, 0, w, h);
+  const dd = dimg.data;
+  const bctx = baseAlphaCanvas.getContext("2d", { willReadFrequently: true });
+  const bd = bctx.getImageData(0, 0, w, h).data;
+  for (let i = 0; i < dd.length; i += 4) {
+    if (dd[i + 3] === 0) continue;
+    dd[i + 3] = dd[i + 3] * (bd[i + 3] / 255);
+  }
+  dctx.putImageData(dimg, 0, 0);
+}
+
 // ── 공개 API ──────────────────────────────────────────────────────────────
 // blendLayerOnto(ctx, layer)
 //   ctx: 이미 아래 레이어들이 그려진 "문서 크기" 2D 컨텍스트(willReadFrequently 권장).

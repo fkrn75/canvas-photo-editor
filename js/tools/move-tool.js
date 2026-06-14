@@ -8,6 +8,8 @@ export class MoveTool extends BaseTool {
   onPointerDown(pt, e) {
     const layer = this.ensureLayer();
     if (!layer) return;
+    if (layer.lockPosition) { this.app.status("위치가 잠겨 있어 이동할 수 없습니다."); return; }
+    if (layer.lockImage) { this.app.status("이미지가 잠겨 있어 이동할 수 없습니다."); return; }
     this.layer = layer;
     this.moving = true;
     this.start = pt;

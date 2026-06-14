@@ -36,8 +36,40 @@ export class AppState {
     this.fontBold = false;
     this.fontItalic = false;
 
+    // 그라디언트 옵션
+    this.gradientType = "linear";        // linear | radial | angle | reflected | diamond
+    this.gradientColorMode = "fg-bg";    // fg-bg | fg-transparent
+    this.gradientReverse = false;
+    this.gradientOpacity = 1;            // 0~1
+    this.gradientBlendMode = "normal";
+
     // 보기 옵션
     this.pixelGrid = false;    // 고배율에서 픽셀 또렷하게
+
+    // 눈금자/그리드/가이드 (보기 메뉴 §2.7)
+    this.showRulers = false;   // 뷰포트 상/좌 눈금자 표시
+    this.showGrid = false;     // 문서 위 그리드 오버레이 표시
+    this.gridSize = 32;        // 그리드 간격(문서 px)
+    this.showGuides = true;    // 가이드 선 표시(가이드가 있을 때)
+    this.guides = [];          // [{orient:'h'|'v', pos}] pos=문서 좌표(px)
+  }
+
+  // ── 가이드 모델 (selection 모델처럼 메서드로만 조작) ──
+  // 수평(h) 가이드는 문서 y좌표, 수직(v) 가이드는 문서 x좌표를 pos로 갖는다.
+  addGuide(orient, pos) {
+    if (orient !== "h" && orient !== "v") return;
+    const p = Math.round(pos);
+    if (!Number.isFinite(p)) return;
+    // 같은 방향·같은 위치 중복 추가 방지
+    if (this.guides.some((g) => g.orient === orient && g.pos === p)) return;
+    this.guides.push({ orient, pos: p });
+    this.bus.emit(EVT.STATE_CHANGED, { key: "guides", value: this.guides });
+  }
+
+  clearGuides() {
+    if (this.guides.length === 0) return;
+    this.guides = [];
+    this.bus.emit(EVT.STATE_CHANGED, { key: "guides", value: this.guides });
   }
 
   // 값을 바꾸고 변경 이벤트를 발행한다. 동일 값이면 무시.

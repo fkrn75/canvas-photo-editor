@@ -20,16 +20,29 @@ export class LayersPanel {
           <label>모드</label>
           <select class="blend">${this._blendOptionsHtml()}</select>
         </div>
+        <div class="row lock-row">
+          <label>잠금</label>
+          <button class="lock-tp" title="투명 영역 잠금">▦</button>
+          <button class="lock-img" title="이미지 픽셀 잠금">🖌</button>
+          <button class="lock-pos" title="위치 잠금">✛</button>
+        </div>
         <div class="row">
           <label>불투명도</label>
           <input type="range" class="op" min="0" max="100" value="100">
           <span class="val-badge op-val">100%</span>
+        </div>
+        <div class="row">
+          <label>채우기</label>
+          <input type="range" class="fill" min="0" max="100" value="100">
+          <span class="val-badge fill-val">100%</span>
         </div>
       </div>
       <div class="layer-list"></div>
       <div class="layer-toolbar">
         <button class="add" title="새 레이어">＋</button>
         <button class="dup" title="레이어 복제">⧉</button>
+        <button class="mask" title="레이어 마스크 추가/삭제">◧</button>
+        <button class="clip" title="클리핑 마스크 (Ctrl+G)">⌎</button>
         <button class="up" title="위로 이동">▲</button>
         <button class="down" title="아래로 이동">▼</button>
         <button class="merge" title="아래로 병합">⤓</button>
@@ -40,6 +53,11 @@ export class LayersPanel {
     this.blendSel = this.el.querySelector(".blend");
     this.opSlider = this.el.querySelector(".op");
     this.opVal = this.el.querySelector(".op-val");
+    this.fillSlider = this.el.querySelector(".fill");
+    this.fillVal = this.el.querySelector(".fill-val");
+    this.lockTpBtn = this.el.querySelector(".lock-tp");
+    this.lockImgBtn = this.el.querySelector(".lock-img");
+    this.lockPosBtn = this.el.querySelector(".lock-pos");
 
     this.blendSel.addEventListener("change", (e) => {
       const id = this.app.layers.activeId;
@@ -55,9 +73,30 @@ export class LayersPanel {
       this.app.layers.setOpacity(this.app.layers.activeId, +e.target.value / 100, { commit: true });
     });
 
+    // 채우기 불투명도(Fill Opacity)
+    this.fillSlider.addEventListener("input", (e) => {
+      this.app.layers.setFillOpacity(this.app.layers.activeId, +e.target.value / 100, { commit: false });
+      this.fillVal.textContent = e.target.value + "%";
+    });
+    this.fillSlider.addEventListener("change", (e) => {
+      this.app.layers.setFillOpacity(this.app.layers.activeId, +e.target.value / 100, { commit: true });
+    });
+
     const L = this.app.layers;
+    // 잠금 토글
+    this.lockTpBtn.addEventListener("click", () => L.toggleLock(L.activeId, "lockTransparency"));
+    this.lockImgBtn.addEventListener("click", () => L.toggleLock(L.activeId, "lockImage"));
+    this.lockPosBtn.addEventListener("click", () => L.toggleLock(L.activeId, "lockPosition"));
+
     this.el.querySelector(".add").addEventListener("click", () => L.addLayer({}));
     this.el.querySelector(".dup").addEventListener("click", () => L.duplicateLayer());
+    // 마스크 버튼: 없으면 추가, 있으면 삭제(토글)
+    this.el.querySelector(".mask").addEventListener("click", () => {
+      const a = L.activeLayer;
+      if (!a) return;
+      if (a.mask) L.removeMask(); else L.addMask(undefined, { fromSelection: !!(this.app.selection?.active) });
+    });
+    this.el.querySelector(".clip").addEventListener("click", () => L.toggleClip());
     this.el.querySelector(".up").addEventListener("click", () => L.moveLayer(undefined, +1));
     this.el.querySelector(".down").addEventListener("click", () => L.moveLayer(undefined, -1));
     this.el.querySelector(".merge").addEventListener("click", () => L.mergeDown());
@@ -82,18 +121,32 @@ export class LayersPanel {
     if (act) {
       this.opSlider.value = Math.round(act.opacity * 100);
       this.opVal.textContent = Math.round(act.opacity * 100) + "%";
+      this.fillSlider.value = Math.round((act.fillOpacity ?? 1) * 100);
+      this.fillVal.textContent = Math.round((act.fillOpacity ?? 1) * 100) + "%";
       this.blendSel.value = act.blendMode || "normal";
       this.blendSel.disabled = false;
+      this.opSlider.disabled = this.fillSlider.disabled = false;
+      // 잠금 버튼 활성 표시
+      this.lockTpBtn.classList.toggle("on", !!act.lockTransparency);
+      this.lockImgBtn.classList.toggle("on", !!act.lockImage);
+      this.lockPosBtn.classList.toggle("on", !!act.lockPosition);
     } else {
       this.blendSel.disabled = true;
+      this.opSlider.disabled = this.fillSlider.disabled = true;
     }
+    // 마스크 버튼 상태(있으면 삭제 모드 표시)
+    const maskBtn = this.el.querySelector(".mask");
+    if (maskBtn) maskBtn.classList.toggle("on", !!(act && act.mask));
+    const clipBtn = this.el.querySelector(".clip");
+    if (clipBtn) clipBtn.classList.toggle("on", !!(act && act.clipped));
 
     this.list.innerHTML = "";
     // 위에서부터(맨 위 레이어) 표시 → 배열 역순
     for (let i = lm.layers.length - 1; i >= 0; i--) {
       const layer = lm.layers[i];
       const row = document.createElement("div");
-      row.className = "layer-row" + (layer.id === lm.activeId ? " active" : "");
+      row.className = "layer-row" + (layer.id === lm.activeId ? " active" : "")
+        + (layer.clipped ? " clipped" : "");
 
       const vis = document.createElement("div");
       vis.className = "layer-vis" + (layer.visible ? "" : " hidden");
@@ -101,16 +154,54 @@ export class LayersPanel {
       vis.title = "표시/숨김";
       vis.addEventListener("click", (e) => { e.stopPropagation(); lm.toggleVisible(layer.id); });
 
+      // 레이어 픽셀 썸네일 — 클릭하면 레이어를 편집 대상으로(maskActive=false)
       const thumb = document.createElement("div");
-      thumb.className = "layer-thumb";
+      thumb.className = "layer-thumb"
+        + (layer.mask && !layer.maskActive ? " edit-target" : "");
       thumb.appendChild(this._thumb(layer));
+      thumb.title = "레이어 편집";
+      thumb.addEventListener("click", (e) => {
+        e.stopPropagation();
+        lm.setActive(layer.id);
+        if (layer.mask) lm.setMaskActive(layer.id, false);
+      });
+
+      // 마스크 썸네일(있을 때만) — 클릭하면 마스크를 편집 대상으로(maskActive=true)
+      let maskThumb = null;
+      if (layer.mask) {
+        maskThumb = document.createElement("div");
+        maskThumb.className = "layer-mask-thumb"
+          + (layer.maskActive ? " edit-target" : "")
+          + (layer.maskEnabled ? "" : " disabled");
+        maskThumb.appendChild(this._maskThumb(layer));
+        maskThumb.title = layer.maskEnabled
+          ? "마스크 편집 (클릭) · 더블클릭=사용/사용안함"
+          : "마스크 사용 안 함 (더블클릭=다시 사용)";
+        maskThumb.addEventListener("click", (e) => {
+          e.stopPropagation();
+          lm.setActive(layer.id);
+          lm.setMaskActive(layer.id, true);
+        });
+        maskThumb.addEventListener("dblclick", (e) => {
+          e.stopPropagation();
+          lm.toggleMaskEnabled(layer.id);
+        });
+      }
 
       const name = document.createElement("div");
       name.className = "layer-name";
-      name.textContent = layer.name;
+      name.textContent = (layer.clipped ? "↳ " : "") + layer.name;
       name.addEventListener("dblclick", () => this._rename(layer, name));
 
-      row.append(vis, thumb, name);
+      // 잠금 상태 표시 아이콘(요약)
+      const locks = document.createElement("div");
+      locks.className = "layer-locks";
+      const lockStr = (layer.lockPosition ? "✛" : "") + (layer.lockTransparency ? "▦" : "") + (layer.lockImage ? "🔒" : "");
+      locks.textContent = lockStr;
+
+      row.append(vis, thumb);
+      if (maskThumb) row.append(maskThumb);
+      row.append(name, locks);
       row.addEventListener("click", () => lm.setActive(layer.id));
       this.list.appendChild(row);
     }
@@ -123,6 +214,18 @@ export class LayersPanel {
     c.height = Math.max(1, Math.round(layer.height * ratio));
     c.getContext("2d").drawImage(layer.canvas, 0, 0, c.width, c.height);
     layer.thumbDirty = false;
+    return c;
+  }
+
+  // 마스크 그레이스케일 썸네일
+  _maskThumb(layer) {
+    const c = document.createElement("canvas");
+    const ratio = Math.min(36 / layer.width, 36 / layer.height);
+    c.width = Math.max(1, Math.round(layer.width * ratio));
+    c.height = Math.max(1, Math.round(layer.height * ratio));
+    const x = c.getContext("2d");
+    x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); // 알파 없는 마스크 배경
+    x.drawImage(layer.mask, 0, 0, c.width, c.height);
     return c;
   }
 

@@ -47,6 +47,12 @@ export class MenuBar {
         { label: "테두리…", fn: () => a.modifySelection("border") },
         { label: "둥글리기…", fn: () => a.modifySelection("smooth") },
         { sep: true },
+        { label: "색상 범위…", fn: () => a.colorRange() },
+        { label: "확대(Grow)…", fn: () => a.grow() },
+        { label: "유사 영역…", fn: () => a.similar() },
+        { label: "선택 저장…", fn: () => a.saveSelection() },
+        { label: "선택 불러오기…", fn: () => a.loadSelection() },
+        { sep: true },
         { label: "선택 영역 삭제", shortcut: "Del", fn: () => a.deleteSelection() },
       ]},
       { title: "이미지", items: [
@@ -68,6 +74,11 @@ export class MenuBar {
         { label: "아래로 병합", shortcut: "Ctrl+E", fn: () => a.layers.mergeDown() },
         { label: "보이는 레이어 병합", shortcut: "Shift+Ctrl+E", fn: () => a.layers.mergeVisible() },
         { label: "이미지 평탄화", fn: () => a.flattenImage() },
+        { sep: true },
+        { label: "레이어 마스크 추가", fn: () => a.layers.addMask(undefined, { fromSelection: !!(a.selection?.active) }) },
+        { label: "레이어 마스크 삭제", fn: () => a.layers.removeMask() },
+        { label: "마스크 사용/사용 안 함", fn: () => a.layers.toggleMaskEnabled() },
+        { label: "이전 레이어와 클리핑", shortcut: "Ctrl+G", fn: () => a.layers.toggleClip() },
         { sep: true },
         { label: "레이어 삭제", fn: () => a.layers.removeLayer() },
       ]},
@@ -123,6 +134,12 @@ export class MenuBar {
         { label: "축소", shortcut: "Ctrl+-", fn: () => a.viewport.setZoom(a.viewport.zoom / 1.25) },
         { label: "화면 맞춤", shortcut: "Ctrl+0", fn: () => a.viewport.fit(a.layers.width, a.layers.height) },
         { label: "실제 크기", shortcut: "Ctrl+1", fn: () => a.viewport.actualSize(a.layers.width, a.layers.height) },
+        { sep: true },
+        { label: "눈금자", shortcut: "Ctrl+R", fn: () => a.toggleRulers() },
+        { label: "그리드 표시", fn: () => a.toggleGrid() },
+        { label: "가이드 표시", fn: () => a.toggleGuides() },
+        { label: "새 가이드…", fn: () => this._newGuide() },
+        { label: "가이드 지우기", fn: () => a.viewport.clearGuides() },
       ]},
     ];
   }
@@ -228,5 +245,13 @@ export class MenuBar {
       { key: "w", label: "폭(px)", type: "number", value: a.layers.width, min: 1, max: 8000 },
       { key: "h", label: "높이(px)", type: "number", value: a.layers.height, min: 1, max: 8000 },
     ], (v) => apply(v.w, v.h), "적용");
+  }
+
+  _newGuide() {
+    const a = this.app;
+    a.dialogs.form("새 가이드", [
+      { key: "orient", label: "방향", type: "select", value: "h", options: [["h", "수평"], ["v", "수직"]] },
+      { key: "pos", label: "위치(px)", type: "number", value: 0, min: 0, max: 8000 },
+    ], (v) => a.viewport.addGuide(v.orient, v.pos), "추가");
   }
 }

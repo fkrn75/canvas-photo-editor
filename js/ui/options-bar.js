@@ -48,6 +48,17 @@ export class OptionsBar {
         this._slider("불투명도", "brushOpacity", 0, 1, 0.01, "%", 100);
         this._checkbox("인접 영역만", "contiguous");
         break;
+      case TOOL.GRADIENT:
+        this._select("종류", "gradientType", [
+          ["linear", "선형"], ["radial", "방사형"], ["angle", "각도"],
+          ["reflected", "반사"], ["diamond", "다이아몬드"],
+        ]);
+        this._select("모드", "gradientColorMode", [
+          ["fg-bg", "전경→배경"], ["fg-transparent", "전경→투명"],
+        ]);
+        this._slider("불투명도", "gradientOpacity", 0, 1, 0.01, "%", 100);
+        this._checkbox("반전", "gradientReverse");
+        break;
       case TOOL.WAND:
         this._slider("허용오차", "tolerance", 0, 255, 1);
         this._checkbox("인접 영역만", "contiguous");

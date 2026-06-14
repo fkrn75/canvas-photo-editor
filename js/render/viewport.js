@@ -18,6 +18,17 @@ export class Viewport {
   get cssWidth() { return this.el.clientWidth; }
   get cssHeight() { return this.el.clientHeight; }
 
+  // ── 가이드 추가/삭제 (state.guides 모델에 위임 후 재렌더) ──
+  // selection 모델처럼 외부(메뉴/다이얼로그)에서는 이 메서드만 호출하면 된다.
+  addGuide(orient, pos) {
+    this.app.state.addGuide(orient, pos);
+    this.app.renderer?.requestRender();
+  }
+  clearGuides() {
+    this.app.state.clearGuides();
+    this.app.renderer?.requestRender();
+  }
+
   screenToWorld(sx, sy) {
     return { x: (sx - this.panX) / this.zoom, y: (sy - this.panY) / this.zoom };
   }

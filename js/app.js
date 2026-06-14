@@ -19,6 +19,7 @@ import { MenuBar } from "./ui/menu-bar.js";
 import { Dialogs } from "./ui/dialogs.js";
 import { DocumentTransformCommand } from "./history/commands/document-command.js";
 import { FlattenCommand } from "./history/commands/layer-structure-command.js";
+import { openColorRange, openSaveSelection, openLoadSelection } from "./ui/select-dialogs.js";
 
 class App {
   constructor() {
@@ -180,6 +181,35 @@ class App {
       { key: "n", label: meta.label, type: "number", value: meta.def, min: 1, max: 250 },
     ], (v) => { this.selection[kind](v.n); this.status(`${meta.title} ${v.n}px 적용`); }, "적용");
   }
+
+  // ── 고급 선택 (색상 범위 / 확대 / 유사 / 저장·불러오기) ──
+  colorRange() {
+    if (!this.layers.activeLayer) { this.status("레이어가 없습니다."); return; }
+    openColorRange(this);
+  }
+  grow() {
+    const layer = this.layers.activeLayer;
+    if (!layer) { this.status("레이어가 없습니다."); return; }
+    if (!this.selection.active) { this.status("먼저 영역을 선택하세요."); return; }
+    this.dialogs.form("선택 확대", [
+      { key: "t", label: "허용치", type: "number", value: this.state.tolerance, min: 0, max: 255 },
+    ], (v) => { const img = layer.ctx.getImageData(0, 0, layer.width, layer.height); this.selection.grow(img, v.t); this.status(`확대(허용치 ${v.t})`); }, "적용");
+  }
+  similar() {
+    const layer = this.layers.activeLayer;
+    if (!layer) { this.status("레이어가 없습니다."); return; }
+    if (!this.selection.active) { this.status("먼저 영역을 선택하세요."); return; }
+    this.dialogs.form("유사 영역 선택", [
+      { key: "t", label: "허용치", type: "number", value: this.state.tolerance, min: 0, max: 255 },
+    ], (v) => { const img = layer.ctx.getImageData(0, 0, layer.width, layer.height); this.selection.similar(img, v.t); this.status(`유사 영역(허용치 ${v.t})`); }, "적용");
+  }
+  saveSelection() { openSaveSelection(this); }
+  loadSelection() { openLoadSelection(this); }
+
+  // ── 보기: 눈금자/그리드/가이드 토글 ──
+  toggleRulers() { this.state.set("showRulers", !this.state.showRulers); this.renderer.requestRender(); }
+  toggleGrid() { this.state.set("showGrid", !this.state.showGrid); this.renderer.requestRender(); }
+  toggleGuides() { this.state.set("showGuides", !this.state.showGuides); this.renderer.requestRender(); }
 
   deleteSelection() {
     const layer = this.layers.activeLayer;
@@ -412,6 +442,8 @@ class App {
         else if (k === "i" && e.shiftKey) { e.preventDefault(); this.invertSelection(); }
         else if (k === "e" && e.shiftKey) { e.preventDefault(); this.layers.mergeVisible(); }
         else if (k === "e") { e.preventDefault(); this.layers.mergeDown(); }
+        else if (k === "g") { e.preventDefault(); this.layers.toggleClip(); }
+        else if (k === "r") { e.preventDefault(); this.toggleRulers(); }
         else if (k === "c" && !typing) { e.preventDefault(); this.clipboard.copy(); }
         else if (k === "0") { e.preventDefault(); this.viewport.fit(this.layers.width, this.layers.height); }
         else if (k === "1") { e.preventDefault(); this.viewport.actualSize(this.layers.width, this.layers.height); }

@@ -2,7 +2,7 @@
 // 모두 { label, memoryBytes, redo(), undo() } 인터페이스를 따른다.
 
 import { Layer } from "../../layers/layer.js";
-import { blendLayerOnto } from "../../engine/blend.js";
+import { blendLayerOnto, buildEffectiveSource } from "../../engine/blend.js";
 
 // 레이어 추가
 export class AddLayerCommand {
@@ -43,8 +43,21 @@ export class DuplicateLayerCommand {
     if (src) {
       this.copy.ctx.drawImage(src.canvas, 0, 0);
       this.copy.opacity = src.opacity;
+      this.copy.fillOpacity = src.fillOpacity ?? 1;
       this.copy.visible = src.visible;
       this.copy.blendMode = src.blendMode || "normal";
+      this.copy.clipped = !!src.clipped;
+      this.copy.lockTransparency = !!src.lockTransparency;
+      this.copy.lockImage = !!src.lockImage;
+      this.copy.lockPosition = !!src.lockPosition;
+      // 마스크 복사(있으면 그레이스케일 캔버스 통째 복제)
+      if (src.mask) {
+        const m = document.createElement("canvas");
+        m.width = lm.width; m.height = lm.height;
+        m.getContext("2d", { willReadFrequently: true }).drawImage(src.mask, 0, 0);
+        this.copy.attachMask(m);
+        this.copy.maskEnabled = src.maskEnabled;
+      }
     }
     this.index = lm.indexOf(srcId) + 1;
     this.memoryBytes = lm.width * lm.height * 4;
@@ -79,8 +92,16 @@ export class MergeDownCommand {
   }
   redo() {
     // 아래 레이어 캔버스 위에 위 레이어를 자신의 blendMode+불투명도로 합쳐 넣는다.
+    // 위 레이어의 마스크/채우기 불투명도를 알파에 반영한 "유효 소스"로 합성한다(없으면 원본).
     // (blendLayerOnto는 ctx.canvas 크기를 문서 크기로 가정 → 레이어 캔버스가 곧 문서 크기이므로 OK)
-    blendLayerOnto(this.lower.ctx, this.upper);
+    const eff = buildEffectiveSource(this.upper);
+    if (eff) {
+      blendLayerOnto(this.lower.ctx, {
+        canvas: eff, blendMode: this.upper.blendMode, opacity: this.upper.opacity, visible: true,
+      });
+    } else {
+      blendLayerOnto(this.lower.ctx, this.upper);
+    }
     this.lower.ctx.globalAlpha = 1;
     this.lower.ctx.globalCompositeOperation = "source-over";
     this.lower.thumbDirty = true;
@@ -174,12 +195,17 @@ export class MergeVisibleCommand {
   }
 }
 
-// 레이어 속성(visible/opacity/name/blendMode) 변경
+// 레이어 속성(visible/opacity/name/blendMode/fillOpacity/clipped/lock*) 변경
 export class LayerPropCommand {
   constructor(lm, id, prop, oldVal, newVal) {
     this.lm = lm; this.id = id; this.prop = prop;
     this.oldVal = oldVal; this.newVal = newVal; this.memoryBytes = 0;
-    this.label = { visible: "레이어 표시 전환", opacity: "불투명도 변경", name: "레이어 이름 변경", blendMode: "블렌드 모드 변경" }[prop] || "레이어 속성";
+    this.label = {
+      visible: "레이어 표시 전환", opacity: "불투명도 변경",
+      name: "레이어 이름 변경", blendMode: "블렌드 모드 변경",
+      fillOpacity: "채우기 불투명도 변경", clipped: "클리핑 마스크",
+      lockTransparency: "투명 영역 잠금", lockImage: "이미지 잠금", lockPosition: "위치 잠금",
+    }[prop] || "레이어 속성";
   }
   _set(v) {
     const layer = this.lm.byId(this.id);
@@ -189,4 +215,114 @@ export class LayerPropCommand {
   }
   redo() { this._set(this.newVal); }
   undo() { this._set(this.oldVal); }
+}
+
+// ── 레이어 마스크 커맨드 ────────────────────────────────────────────────────
+// 마스크 추가. reveal/Hide All 또는 선택 영역 기반(Reveal Selection)으로 마스크를 만든다.
+// undo 시 마스크 캔버스를 통째로 보관/복원한다.
+export class AddMaskCommand {
+  constructor(lm, id, { reveal = true, fromSelection = false } = {}) {
+    this.lm = lm; this.id = id;
+    this.label = "레이어 마스크 추가";
+    const layer = lm.byId(id);
+    // 마스크 캔버스를 미리 만들어 둔다(redo/undo 간 동일 인스턴스 유지 → 그린 내용 보존)
+    const m = document.createElement("canvas");
+    m.width = lm.width; m.height = lm.height;
+    const mc = m.getContext("2d", { willReadFrequently: true });
+    const sel = lm.app.selection;
+    if (fromSelection && sel && sel.active && sel.mask) {
+      // 선택 영역=흰색(드러냄), 나머지=검정(가림)
+      mc.fillStyle = "#000000"; mc.fillRect(0, 0, m.width, m.height);
+      const img = mc.getImageData(0, 0, m.width, m.height);
+      const d = img.data, sm = sel.mask;
+      for (let i = 0; i < sm.length; i++) {
+        const v = sm[i]; // 0~255
+        d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v;
+      }
+      mc.putImageData(img, 0, 0);
+    } else {
+      mc.fillStyle = reveal ? "#ffffff" : "#000000";
+      mc.fillRect(0, 0, m.width, m.height);
+    }
+    this.mask = m;
+    this.memoryBytes = lm.width * lm.height * 4;
+    this._wasActive = layer ? layer.maskActive : false;
+  }
+  redo() {
+    const layer = this.lm.byId(this.id);
+    if (!layer) return;
+    layer.attachMask(this.mask);
+    layer.maskEnabled = true;
+    layer.maskActive = true; // 추가 직후 마스크를 편집 대상으로
+    this.lm.notifyStructure();
+  }
+  undo() {
+    const layer = this.lm.byId(this.id);
+    if (!layer) return;
+    layer.removeMask();
+    layer.maskActive = this._wasActive;
+    this.lm.notifyStructure();
+  }
+}
+
+// 마스크 삭제(통째 보관 후 복원)
+export class RemoveMaskCommand {
+  constructor(lm, id) {
+    this.lm = lm; this.id = id; this.label = "레이어 마스크 삭제";
+    const layer = lm.byId(id);
+    this.mask = layer ? layer.mask : null;
+    this.wasEnabled = layer ? layer.maskEnabled : true;
+    this.wasActive = layer ? layer.maskActive : false;
+    this.memoryBytes = lm.width * lm.height * 4;
+  }
+  redo() {
+    const layer = this.lm.byId(this.id);
+    if (!layer) return;
+    layer.removeMask();
+    this.lm.notifyStructure();
+  }
+  undo() {
+    const layer = this.lm.byId(this.id);
+    if (!layer) return;
+    layer.attachMask(this.mask);
+    layer.maskEnabled = this.wasEnabled;
+    layer.maskActive = this.wasActive;
+    this.lm.notifyStructure();
+  }
+}
+
+// 마스크에 그린 픽셀 편집(브러시/지우개) undo/redo.
+// 레이어 픽셀이 아니라 layer.mask 캔버스를 대상으로 변경 전/후 영역만 보관한다.
+export class MaskPaintCommand {
+  constructor(lm, layerId, x, y, before, after, label = "마스크 그리기") {
+    this.lm = lm; this.layerId = layerId;
+    this.x = x; this.y = y;
+    this.before = before; this.after = after; this.label = label;
+    this.memoryBytes = before.data.length + after.data.length;
+  }
+  _put(img) {
+    const layer = this.lm.byId(this.layerId);
+    if (!layer || !layer.mask) return;
+    layer.maskCtx.putImageData(img, this.x, this.y);
+    layer.thumbDirty = true;
+    this.lm.notifyContent(this.layerId);
+  }
+  undo() { this._put(this.before); }
+  redo() { this._put(this.after); }
+}
+
+// 마스크 사용/사용 안 함 토글
+export class ToggleMaskEnabledCommand {
+  constructor(lm, id) {
+    this.lm = lm; this.id = id; this.label = "마스크 사용 전환"; this.memoryBytes = 0;
+  }
+  _toggle() {
+    const layer = this.lm.byId(this.id);
+    if (!layer) return;
+    layer.maskEnabled = !layer.maskEnabled;
+    layer.thumbDirty = true;
+    this.lm.notifyStructure();
+  }
+  redo() { this._toggle(); }
+  undo() { this._toggle(); }
 }

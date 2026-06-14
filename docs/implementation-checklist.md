@@ -25,7 +25,20 @@
 - [x] **필터 6종** — Unsharp Mask / Motion Blur / Median / Mosaic / Find Edges / High Pass *(검증: findEdges end-to-end 픽셀 변화, 전 필터 실행 무에러)*
 - [x] **선택 연산** — 선택 반전(Shift+Ctrl+I) / 페더(Alt+Ctrl+D) / Modify(확장·축소·테두리·둥글리기) *(검증: 반전 in/out 토글, 페더 graded alpha `[252,51,163]`)*
 
-**다음 분기점 (iteration 2 후보)**: ① **레이어 마스크 → 클리핑 마스크** → ② **Gradient 도구** → ③ Lock/Fill Opacity, Quick Mask, Color Range, Grow/Similar. (자세한 권장 순서는 맨 아래 [작업 순서](#-추천-작업-순서) 참조)
+## ✅ iteration 2 완료 (2026-06-14, 팀 오케스트라 4워커 병렬 + 브라우저 검증)
+
+> 전부 브라우저(8124) 런타임 검증 — 콘솔 에러 0.
+
+- [x] **레이어 마스크** — 그레이스케일 마스크, 추가/삭제/사용토글, 마스크 페인팅, 블렌드와 정합 *(검증: 마스크 검정→alpha 0·흰→255)*
+- [x] **클리핑 마스크** (이전 레이어와 클리핑, Ctrl+G)
+- [x] **레이어 Lock**(투명/이미지/위치) + **Fill Opacity**(별도 슬라이더)
+- [x] **Gradient 도구** — 선형/방사형/각도/반사/다이아몬드 5종, 전경→배경·전경→투명, Reverse/Opacity, Shift 45°, 선택 클립(페더 반영) *(검증: 흑→백 21→248)* · G 슬롯 버킷↔그라디언트 순환
+- [x] **고급 선택** — 색상 범위(스포이드+허용치) / 확대(Grow) / 유사 영역(Similar) / 선택 저장·불러오기 *(검증: fromColorMatch mask 생성)*
+- [x] **눈금자(Ctrl+R) / 그리드 / 가이드**(표시·새 가이드·지우기) *(검증: 토글·렌더 무에러)*
+
+**다음 분기점 (iteration 3, 🟡 잔여)**: Quick Mask · Stroke · Save for Web · Swatches 확장 · Marquee 타원/단일행·열 · Shape 다각형 · Zoom 도구 분리. 그다음 🟠 고급 진입 전 확인.
+
+> ⚠️ 알려진 한계(후속): 이미지 크기/자르기/회전/뒤집기 시 레이어 마스크가 함께 변형되지 않음(캔버스 크기 변경은 동기화됨). iteration 3에서 app.js 변형부에 마스크 동반 처리 예정.
 
 ---
 

@@ -12,11 +12,12 @@ import { MarqueeTool } from "./marquee-tool.js";
 import { LassoTool } from "./lasso-tool.js";
 import { WandTool } from "./wand-tool.js";
 import { HandTool } from "./hand-tool.js";
+import { GradientTool } from "./gradient-tool.js";
 
-// 단일 키 도구 단축키
+// 단일 키 도구 단축키 (g는 버킷↔그라디언트 슬롯 순환이라 아래 keydown에서 별도 처리)
 const KEYMAP = {
   v: TOOL.MOVE, m: TOOL.MARQUEE, l: TOOL.LASSO, w: TOOL.WAND,
-  b: TOOL.BRUSH, n: TOOL.PENCIL, e: TOOL.ERASER, g: TOOL.BUCKET,
+  b: TOOL.BRUSH, n: TOOL.PENCIL, e: TOOL.ERASER,
   i: TOOL.EYEDROPPER, u: TOOL.SHAPE, t: TOOL.TEXT, h: TOOL.HAND,
 };
 
@@ -45,6 +46,7 @@ export class ToolManager {
     this.tools[TOOL.PENCIL] = new PaintTool(a, "pencil");
     this.tools[TOOL.ERASER] = new PaintTool(a, "eraser");
     this.tools[TOOL.BUCKET] = new BucketTool(a, TOOL.BUCKET);
+    this.tools[TOOL.GRADIENT] = new GradientTool(a, TOOL.GRADIENT);
     this.tools[TOOL.EYEDROPPER] = new EyedropperTool(a, TOOL.EYEDROPPER);
     this.tools[TOOL.MOVE] = new MoveTool(a, TOOL.MOVE);
     this.tools[TOOL.SHAPE] = new ShapeTool(a, TOOL.SHAPE);
@@ -146,6 +148,10 @@ export class ToolManager {
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return; // Ctrl 조합은 app이 처리
       const k = e.key.toLowerCase();
+      if (k === "g") { // G 슬롯: 페인트 버킷 ↔ 그라디언트 순환
+        this.setTool(this.activeId === TOOL.BUCKET ? TOOL.GRADIENT : TOOL.BUCKET);
+        e.preventDefault(); return;
+      }
       if (KEYMAP[k]) { this.setTool(KEYMAP[k]); e.preventDefault(); return; }
       const s = this.app.state;
       if (e.key === "[") s.set("brushSize", Math.max(1, s.brushSize - 2));

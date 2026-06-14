@@ -8,7 +8,8 @@
 
 import { BaseTool } from "./base-tool.js";
 import { hexToRgb } from "../engine/color.js";
-import { newBounds, expandBounds, boundsToBox, clampBox } from "../engine/imagedata.js";
+import { newBounds, expandBounds, boundsToBox, clampBox, cropImageData } from "../engine/imagedata.js";
+import { MaskPaintCommand } from "../history/commands/layer-structure-command.js";
 
 export class PaintTool extends BaseTool {
   constructor(app, id) {
@@ -34,12 +35,31 @@ export class PaintTool extends BaseTool {
   onPointerDown(pt, e) {
     const layer = this.ensureLayer();
     if (!layer) return;
+
+    // 편집 대상 결정: 마스크 편집 중이면 마스크 캔버스, 아니면 레이어 픽셀
+    this.targetMask = !!(layer.maskActive && layer.mask);
+
+    // 잠금 검사(마스크 편집에는 레이어 잠금이 적용되지 않음)
+    if (!this.targetMask) {
+      if (layer.lockImage) { this.app.status("이미지가 잠겨 있어 칠할 수 없습니다."); return; }
+      // 투명 영역 잠금: 칠하기는 허용하되 기존 알파>0 영역으로만 제한(_composite에서 처리).
+      // 지우개+lockTransparency는 포토샵에서 배경색으로 칠하지만, 여기선 기존 동작 보존을 위해 알파만 제한.
+    }
+
     this.layer = layer;
     this.drawing = true;
     this.p = this._params();
     this.bounds = newBounds();
-    this.history.beginPixelEdit(layer);
-    this.before = this.history._peBefore;
+
+    // 대상 컨텍스트 + 변경 전 스냅샷(undo용)
+    this.targetCtx = this.targetMask ? layer.maskCtx : layer.ctx;
+    if (this.targetMask) {
+      // 마스크 직접 편집: 자체 before 스냅샷(히스토리 begin/commit은 레이어 픽셀 전용)
+      this.before = layer.maskCtx.getImageData(0, 0, layer.width, layer.height);
+    } else {
+      this.history.beginPixelEdit(layer);
+      this.before = this.history._peBefore;
+    }
 
     // 강도 마스크: 불투명 검정으로 시작 → 흰색 스탬프를 lighten으로 누적
     this.mask = document.createElement("canvas");
@@ -72,9 +92,24 @@ export class PaintTool extends BaseTool {
     this.drawing = false;
     this._composite();
     const box = boundsToBox(this.bounds);
-    this.mask = null; this.mctx = null; this.before = null; this.layer = null;
     const label = this.id === "eraser" ? "지우개" : this.id === "pencil" ? "연필" : "브러시";
-    this.history.commitPixelEdit(box, label);
+
+    if (this.targetMask) {
+      // 마스크 편집: 변경 영역만 잘라 MaskPaintCommand로 등록
+      const layer = this.layer;
+      const cb = box && clampBox(box, layer.width, layer.height);
+      if (cb) {
+        const beforeCrop = cropImageData(this.before, cb);
+        const afterCrop = layer.maskCtx.getImageData(cb.x, cb.y, cb.w, cb.h);
+        this.history.push(new MaskPaintCommand(this.layers, layer.id, cb.x, cb.y, beforeCrop, afterCrop, label + " (마스크)"));
+      }
+      this.layers.notifyContent(layer.id);
+    } else {
+      this.history.commitPixelEdit(box, label);
+    }
+
+    this.mask = null; this.mctx = null; this.before = null; this.layer = null;
+    this.targetCtx = null; this.targetMask = false;
   }
 
   onLeave() { this._hover = null; this.app.renderer.requestRender(); }
@@ -145,9 +180,9 @@ export class PaintTool extends BaseTool {
     }
   }
 
-  // 마스크(강도) → 색/지우기로 변환해 활성 레이어(변경 영역만)에 합성
+  // 마스크(강도) → 색/지우기로 변환해 대상(레이어 픽셀 또는 레이어 마스크, 변경 영역만)에 합성
   _composite() {
-    const ctx = this.layer.ctx;
+    const ctx = this.targetCtx;        // 레이어 픽셀 ctx 또는 마스크 ctx
     ctx.putImageData(this.before, 0, 0);
     const box = boundsToBox(this.bounds);
     const cb = box && clampBox(box, this.layer.width, this.layer.height);
@@ -156,20 +191,46 @@ export class PaintTool extends BaseTool {
     const m = this.mctx.getImageData(cb.x, cb.y, cb.w, cb.h).data;
     const out = ctx.getImageData(cb.x, cb.y, cb.w, cb.h);
     const od = out.data;
-    const { r, g, b } = this.p.rgb;
     const op = this.p.opacity;
     const erase = this.p.erase;
-    for (let i = 0; i < m.length; i += 4) {
-      const a = (m[i] / 255) * op; // 마스크 밝기 × 불투명도 = 잉크 강도
-      if (a <= 0) continue;
-      if (erase) {
-        od[i + 3] = od[i + 3] * (1 - a);
-      } else {
+
+    if (this.targetMask) {
+      // ── 마스크 페인팅: 그레이스케일에 칠한다(검정=가림 / 흰=드러냄) ──
+      // 브러시는 전경색의 휘도를 그레이 값으로 사용. 지우개는 흰색(=드러냄)으로 칠한다.
+      const { r, g, b } = this.p.rgb;
+      const gray = erase ? 255 : Math.round(r * 0.299 + g * 0.587 + b * 0.114);
+      for (let i = 0; i < m.length; i += 4) {
+        const a = (m[i] / 255) * op; // 잉크 강도
+        if (a <= 0) continue;
         const ia = 1 - a;
-        od[i] = r * a + od[i] * ia;
-        od[i + 1] = g * a + od[i + 1] * ia;
-        od[i + 2] = b * a + od[i + 2] * ia;
-        od[i + 3] = 255 * a + od[i + 3] * ia;
+        od[i]     = gray * a + od[i] * ia;
+        od[i + 1] = gray * a + od[i + 1] * ia;
+        od[i + 2] = gray * a + od[i + 2] * ia;
+        od[i + 3] = 255; // 마스크는 항상 불투명(알파 채널 미사용)
+      }
+    } else {
+      // ── 레이어 픽셀 페인팅(기존 경로) ──
+      const { r, g, b } = this.p.rgb;
+      // 투명 영역 잠금: 칠하기 전 알파(=현재 od[i+3], before를 막 복원해 읽은 값)로 강도 제한.
+      const lockT = this.layer.lockTransparency;
+      for (let i = 0; i < m.length; i += 4) {
+        let a = (m[i] / 255) * op; // 마스크 밝기 × 불투명도 = 잉크 강도
+        if (a <= 0) continue;
+        const srcA = od[i + 3]; // 변경 전 픽셀 알파
+        if (lockT) {
+          // 투명 잠금: 투명 영역엔 칠하지 않고, 지우개는 알파를 바꾸지 않음(잠금 의미 보존)
+          if (srcA <= 0 || erase) continue;
+          a = a * (srcA / 255);        // 기존 알파에 비례해 제한(가장자리 자연스럽게)
+        }
+        if (erase) {
+          od[i + 3] = srcA * (1 - a);
+        } else {
+          const ia = 1 - a;
+          od[i] = r * a + od[i] * ia;
+          od[i + 1] = g * a + od[i + 1] * ia;
+          od[i + 2] = b * a + od[i + 2] * ia;
+          od[i + 3] = 255 * a + srcA * ia;
+        }
       }
     }
     ctx.putImageData(out, cb.x, cb.y);

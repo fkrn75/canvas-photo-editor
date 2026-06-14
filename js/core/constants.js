@@ -27,6 +27,7 @@ export const TOOL = {
   PENCIL: "pencil",
   ERASER: "eraser",
   BUCKET: "bucket",
+  GRADIENT: "gradient",
   EYEDROPPER: "eyedropper",
   SHAPE: "shape",
   TEXT: "text",

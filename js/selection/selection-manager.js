@@ -447,4 +447,179 @@ export class SelectionManager {
     }, 90);
   }
   _stopAnts() { if (this._timer) { clearInterval(this._timer); this._timer = null; } }
+
+  // ═══════════════════════════════════════════════════════════
+  // 고급 선택 (Color Range / Grow / Similar / 선택 저장·불러오기)
+  // 모두 mask(Uint8Array, 0~255) 모델 위에서 동작한다.
+  // ═══════════════════════════════════════════════════════════
+
+  // ── Color Range: 기준색과 유사한 픽셀을 0~255 마스크로 생성 ──
+  // imageData : 활성 레이어의 ImageData(문서 전체 크기)
+  // refColor  : {r,g,b} 기준색
+  // tolerance : 0~255 허용치(fuzziness). 색차가 0이면 255, tolerance면 ~0으로 부드럽게 감쇠.
+  // 반환: {mask, bounds} — bounds는 선택(>0)된 픽셀의 경계. 없으면 bounds=null.
+  // ※ 화면을 갱신하지 않는다(미리보기용). 실제 적용은 호출측에서 setMask/_commitMask로.
+  fromColorMatch(imageData, refColor, tolerance) {
+    const W = this.app.layers.width, H = this.app.layers.height;
+    const d = imageData.data;
+    const n = W * H;
+    const mask = new Uint8Array(n);
+    const tr = refColor.r, tg = refColor.g, tb = refColor.b;
+    // tolerance를 "최대 허용 색거리"로 본다. 색거리는 RGB 채널 최대 절대차(체비셰프)
+    // — floodfill/매직완드의 비교 방식과 일치시켜 일관된 느낌을 준다.
+    const tol = Math.max(0, tolerance);
+    // 부분 선택(소프트 에지): 색거리 0 → 255, tol → 0 으로 선형 감쇠.
+    // tol 너머는 0(비선택). tol=0이면 정확히 일치하는 픽셀만 255.
+    let minX = W, minY = H, maxX = -1, maxY = -1;
+    for (let i = 0; i < n; i++) {
+      const j = i * 4;
+      const dr = Math.abs(d[j] - tr);
+      const dg = Math.abs(d[j + 1] - tg);
+      const db = Math.abs(d[j + 2] - tb);
+      const dist = dr > dg ? (dr > db ? dr : db) : (dg > db ? dg : db);
+      let v;
+      if (tol === 0) v = dist === 0 ? 255 : 0;
+      else if (dist >= tol) v = 0;
+      else v = 255 - ((dist * 255 / tol) | 0); // 선형 페더
+      if (v > 0) {
+        mask[i] = v;
+        const x = i % W, y = (i / W) | 0;
+        if (x < minX) minX = x; if (y < minY) minY = y;
+        if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+      }
+    }
+    const bounds = maxX < 0 ? null : { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+    return { mask, bounds };
+  }
+
+  // ── Grow: 현재 선택의 경계에 인접한 유사색 픽셀로 확장(인접/연속) ──
+  // 현재 선택된 각 픽셀에서 출발해, 색거리가 tolerance 이내인 이웃을 따라 영역을 넓힌다.
+  // (floodfill의 스캔라인 확장 로직을 "다중 시드"로 재사용. 시드 색 자신과의 비교로 자연 확장)
+  // imageData : 활성 레이어 ImageData, tolerance : 0~255.
+  // 결과를 바로 _commitMask 한다. 선택이 없으면 무시.
+  grow(imageData, tolerance) {
+    if (!this.mask) { this.app.status?.("먼저 영역을 선택하세요."); return; }
+    const W = this.app.layers.width, H = this.app.layers.height;
+    const d = imageData.data;
+    const n = W * H;
+    const tol = Math.max(0, tolerance);
+
+    // 결과 마스크: 현재 선택을 이진(>0 → 255)으로 시작 + 방문 표시 겸용.
+    const out = new Uint8Array(n);
+    // 색 비교: 두 픽셀 인덱스의 RGBA 체비셰프 거리 ≤ tol?
+    const close = (a, b) => {
+      const ia = a * 4, ib = b * 4;
+      return Math.abs(d[ia] - d[ib]) <= tol &&
+             Math.abs(d[ia + 1] - d[ib + 1]) <= tol &&
+             Math.abs(d[ia + 2] - d[ib + 2]) <= tol &&
+             Math.abs(d[ia + 3] - d[ib + 3]) <= tol;
+    };
+
+    // 스택에 현재 선택된 모든 픽셀을 시드로 넣는다(다중 시드 BFS/DFS).
+    // 각 픽셀은 "자기 색" 기준으로 이웃을 흡수하므로, 경계 너머 유사색이 자연스럽게 붙는다.
+    const stack = [];
+    for (let i = 0; i < n; i++) {
+      if (this.mask[i] > 0) { out[i] = 255; stack.push(i); }
+    }
+    while (stack.length) {
+      const i = stack.pop();
+      const x = i % W, y = (i / W) | 0;
+      // 4-이웃 검사
+      if (x > 0)     { const k = i - 1; if (!out[k] && close(i, k)) { out[k] = 255; stack.push(k); } }
+      if (x < W - 1) { const k = i + 1; if (!out[k] && close(i, k)) { out[k] = 255; stack.push(k); } }
+      if (y > 0)     { const k = i - W; if (!out[k] && close(i, k)) { out[k] = 255; stack.push(k); } }
+      if (y < H - 1) { const k = i + W; if (!out[k] && close(i, k)) { out[k] = 255; stack.push(k); } }
+    }
+    this._commitMask(out);
+  }
+
+  // ── Similar: 선택 내부의 색과 유사한 "전역" 픽셀을 모두 선택(비연속) ──
+  // 현재 선택 안의 색들을 16단계 양자화해 유니크 색 집합을 만든 뒤,
+  // 문서 전체에서 그 집합 중 하나라도 tolerance 이내인 픽셀을 선택한다.
+  // imageData : 활성 레이어 ImageData, tolerance : 0~255. 결과를 바로 _commitMask.
+  similar(imageData, tolerance) {
+    if (!this.mask) { this.app.status?.("먼저 영역을 선택하세요."); return; }
+    const W = this.app.layers.width, H = this.app.layers.height;
+    const d = imageData.data;
+    const n = W * H;
+    const tol = Math.max(0, tolerance);
+
+    // 1) 선택 내부 색을 양자화(>>4 → 0~15)해 대표색 집합 수집(성능상 색 종류를 압축).
+    //    키: r4<<8 | g4<<4 | b4 (알파>0 픽셀만; 투명은 무시).
+    const set = new Set();
+    for (let i = 0; i < n; i++) {
+      if (this.mask[i] === 0) continue;
+      const j = i * 4;
+      if (d[j + 3] === 0) continue;
+      const key = ((d[j] >> 4) << 8) | ((d[j + 1] >> 4) << 4) | (d[j + 2] >> 4);
+      set.add(key);
+    }
+    if (set.size === 0) { this.app.status?.("선택 영역에 색이 없습니다."); return; }
+    // 대표색을 빠른 비교용 평탄 배열(각 양자화 버킷의 중앙값 8+r,g,b)로 변환.
+    const refs = [];
+    for (const key of set) {
+      refs.push(((key >> 8) & 15) * 16 + 8, ((key >> 4) & 15) * 16 + 8, (key & 15) * 16 + 8);
+    }
+    const rn = refs.length;
+
+    // 2) 전역 스캔: 어떤 대표색과도 tol 이내(체비셰프)면 선택.
+    const out = new Uint8Array(n);
+    let minX = W, minY = H, maxX = -1, maxY = -1;
+    for (let i = 0; i < n; i++) {
+      const j = i * 4;
+      const r = d[j], g = d[j + 1], b = d[j + 2];
+      let hit = false;
+      for (let t = 0; t < rn; t += 3) {
+        if (Math.abs(r - refs[t]) <= tol && Math.abs(g - refs[t + 1]) <= tol && Math.abs(b - refs[t + 2]) <= tol) {
+          hit = true; break;
+        }
+      }
+      if (hit) {
+        out[i] = 255;
+        const x = i % W, y = (i / W) | 0;
+        if (x < minX) minX = x; if (y < minY) minY = y;
+        if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+      }
+    }
+    if (maxX < 0) { this.clear(); return; }
+    this._commitMask(out);
+  }
+
+  // ── 선택 저장 / 불러오기 (명명된 마스크 저장소) ──
+  // this.saved : Map<name, {mask:Uint8Array, bounds}> — 마스크는 복사본으로 보관(원본 변형 방지).
+
+  // 현재 선택을 name으로 저장. 선택이 없으면 false 반환.
+  saveSelection(name) {
+    if (!this.saved) this.saved = new Map();
+    if (!this.mask || !this.bounds) return false;
+    this.saved.set(name, { mask: this.mask.slice(), bounds: { ...this.bounds } });
+    return true;
+  }
+
+  // 저장된 선택을 불러와 현재 선택으로 만든다. 없으면 false.
+  // 문서 크기가 저장 당시와 다르면(리사이즈됨) 불러오지 않는다.
+  loadSelection(name) {
+    if (!this.saved) return false;
+    const rec = this.saved.get(name);
+    if (!rec) return false;
+    const W = this.app.layers.width, H = this.app.layers.height;
+    if (rec.mask.length !== W * H) {
+      this.app.status?.("문서 크기가 달라 선택을 불러올 수 없습니다.");
+      return false;
+    }
+    this._commit(rec.mask.slice(),
+      { ...rec.bounds },
+      this._outlineFromMask(rec.mask, rec.bounds, 128));
+    return true;
+  }
+
+  // 저장된 선택 이름 목록(배열). 없으면 빈 배열.
+  listSaved() {
+    return this.saved ? [...this.saved.keys()] : [];
+  }
+
+  // 저장된 선택 삭제. 있었으면 true.
+  deleteSaved(name) {
+    return this.saved ? this.saved.delete(name) : false;
+  }
 }
