@@ -91,7 +91,7 @@ export class DodgeBurnTool extends BaseTool {
     this.work = null; this.layer = null;
   }
 
-  onLeave() { this._hover = null; this.app.renderer.requestRender(); }
+  onLeave() { this._hover = null; this.app.renderer.requestOverlayRender(); }
 
   _stamp(a, b) {
     const r = Math.max(0.5, this.p.size / 2);
@@ -194,7 +194,10 @@ export class DodgeBurnTool extends BaseTool {
       }
     }
 
-    this.layer.ctx.putImageData(out, 0, 0);
+    // 부분 반영: out은 레이어 전체 크기 버퍼지만 이번 호출에서 실제로 바뀐 곳은 cb 영역뿐이다
+    // (cb 밖은 이 stroke에서 한 번도 손댄 적이 없어 out과 캔버스가 이미 같은 값).
+    // 과거엔 여기서 캔버스 전체를 putImageData해 4000x4000 기준 이동 1회당 64MB를 복사했다.
+    this.layer.ctx.putImageData(out, 0, 0, cb.x, cb.y, cb.w, cb.h);
     this.layer.thumbDirty = true;
     this.app.renderer.requestRender();
   }

@@ -530,7 +530,10 @@ export class SelectionManager {
     // 마칭앤츠 애니메이션: 주기적으로 점선 오프셋을 바꾸며 재렌더 요청
     this._timer = setInterval(() => {
       this._dash = (this._dash + 1) % 8;
-      this.app.renderer?.requestRender();
+      // 점선 오프셋만 바뀌는 오버레이 갱신 — 레이어 합성/스타일 캐시는 그대로 둔다.
+      // (이걸 requestRender()로 부르면 선택 영역이 활성인 동안 90ms마다 전체 레이어를
+      //  다시 합성·블렌드·스타일 재계산하게 되어 매우 비싸진다 — 성능 감사로 확인된 핫패스)
+      this.app.renderer?.requestOverlayRender();
     }, 90);
   }
   _stopAnts() { if (this._timer) { clearInterval(this._timer); this._timer = null; } }

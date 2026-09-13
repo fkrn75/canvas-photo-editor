@@ -126,7 +126,7 @@ export class PaintTool extends BaseTool {
       this.last = pt;
       this._composite();
     } else {
-      this.app.renderer.requestRender(); // 커서 위치 갱신
+      this.app.renderer.requestOverlayRender(); // 커서 위치 갱신(레이어 픽셀 무관 — 합성 캐시 유지)
     }
   }
 
@@ -160,7 +160,7 @@ export class PaintTool extends BaseTool {
     this.perStampColor = false; this.dynOn = false; this.alphaMod = null; this.amd = null;
   }
 
-  onLeave() { this._hover = null; this.app.renderer.requestRender(); }
+  onLeave() { this._hover = null; this.app.renderer.requestOverlayRender(); }
 
   // a→b 구간을 거리 기반으로 보간하며 스탬프를 찍는다.
   // 동역학 경로에 따라 단색-마스크(_dot) 또는 스탬프별 채색(_colorDab)으로 분기한다.
@@ -306,10 +306,13 @@ export class PaintTool extends BaseTool {
   // 마스크(강도) → 색/지우기로 변환해 대상(레이어 픽셀 또는 레이어 마스크, 변경 영역만)에 합성
   _composite() {
     const ctx = this.targetCtx;        // 레이어 픽셀 ctx 또는 마스크 ctx
-    ctx.putImageData(this.before, 0, 0);
     const box = boundsToBox(this.bounds);
     const cb = box && clampBox(box, this.layer.width, this.layer.height);
     if (!cb) { this.app.renderer.requestRender(); return; }
+    // 부분 복원: this.bounds는 stroke 동안 단조 증가만 하므로(축소 없음) cb도 프레임마다 커지기만 한다.
+    // 즉 cb 밖 픽셀은 이 stroke에서 한 번도 스탬프가 찍힌 적이 없어 항상 before 그대로다 — 복원 불필요.
+    // (과거엔 매 프레임 캔버스 전체를 putImageData로 복원해 4000x4000 기준 이동 1회당 64MB를 복사했다.)
+    ctx.putImageData(this.before, 0, 0, cb.x, cb.y, cb.w, cb.h);
 
     // ── 스탬프별 채색 경로: stroke 레이어를 opacity로 한 번에 얹는다(flow↔opacity 분리) ──
     if (this.perStampColor) {

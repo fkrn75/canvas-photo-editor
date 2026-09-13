@@ -212,13 +212,17 @@ export function buildEffectiveSource(layer, scratchCanvas = null) {
 
 // destCanvas의 알파를 maskCanvas(클립 베이스)의 알파로 곱한다(in-place, 클리핑 마스크용).
 // 클리핑된 레이어의 합성 결과를 "베이스가 불투명한 곳"으로만 제한할 때 쓴다.
-export function clipAlphaByAlpha(destCanvas, baseAlphaCanvas) {
+// baseImageData: baseAlphaCanvas를 이미 getImageData로 읽어둔 게 있으면 넘겨서 재사용한다
+// (같은 프레임에서 같은 클립 베이스에 레이어가 여럿 클리핑될 때 중복 getImageData 방지).
+// 없으면(null) 기존처럼 직접 읽는다 — 알고리즘/결과는 완전히 동일.
+export function clipAlphaByAlpha(destCanvas, baseAlphaCanvas, baseImageData = null) {
   const w = destCanvas.width, h = destCanvas.height;
   const dctx = destCanvas.getContext("2d", { willReadFrequently: true });
   const dimg = dctx.getImageData(0, 0, w, h);
   const dd = dimg.data;
-  const bctx = baseAlphaCanvas.getContext("2d", { willReadFrequently: true });
-  const bd = bctx.getImageData(0, 0, w, h).data;
+  const bd = baseImageData
+    ? baseImageData.data
+    : baseAlphaCanvas.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
   for (let i = 0; i < dd.length; i += 4) {
     if (dd[i + 3] === 0) continue;
     dd[i + 3] = dd[i + 3] * (bd[i + 3] / 255);

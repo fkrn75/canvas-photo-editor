@@ -31,6 +31,14 @@ export class Layer {
     this.type = "pixel";        // "pixel"=일반 레이어 / "adjustment"=조정 레이어(비파괴 보정)
     this.adjustmentType = null; // 조정 종류(adjustment-layer.js ADJUSTMENT_TYPES 키)
     this.adjustmentParams = null; // 조정 파라미터 객체
+
+    // ── 합성 캐시용 메타(layer-manager._blendOneLayer) ──
+    // pixelVersion: 이 레이어의 캔버스/마스크 픽셀이 바뀔 때마다 증가하는 카운터.
+    //   layer-manager.notifyContent()/notifyStructure()가 갱신 지점을 관리한다.
+    this.pixelVersion = 0;
+    // _styleCache: applyLayerStyles() 결과 캐시. { key, canvas } | null.
+    //   key가 (pixelVersion + 스타일 세대 + 스타일 파라미터 + 문서 크기)와 일치하면 재사용한다.
+    this._styleCache = null;
   }
 
   get width() { return this.canvas.width; }

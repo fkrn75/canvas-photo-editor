@@ -45,7 +45,7 @@ export class CloneStampTool extends BaseTool {
       this.source = { x: pt.x, y: pt.y };
       this.offset = null; // 새 소스를 잡으면 정렬 오프셋도 초기화
       this.app.status("복제 소스 지정됨. 드래그하여 복제하세요.");
-      this.app.renderer.requestRender();
+      this.app.renderer.requestOverlayRender(); // 소스점 십자 표식만 갱신(레이어 픽셀 무관)
       return;
     }
 
@@ -90,7 +90,7 @@ export class CloneStampTool extends BaseTool {
       this.last = pt;
       this._composite();
     } else {
-      this.app.renderer.requestRender(); // 커서/소스 오버레이 갱신
+      this.app.renderer.requestOverlayRender(); // 커서/소스 오버레이 갱신(레이어 픽셀 무관)
     }
   }
 
@@ -106,7 +106,7 @@ export class CloneStampTool extends BaseTool {
     // offset은 정렬 모드에서 다음 stroke로 이어지므로 유지(비정렬이면 다음 down에서 갱신)
   }
 
-  onLeave() { this._hover = null; this.app.renderer.requestRender(); }
+  onLeave() { this._hover = null; this.app.renderer.requestOverlayRender(); }
 
   // 강도 마스크 초기화(paint-tool과 동일 사상)
   _initMask(layer) {
@@ -190,7 +190,10 @@ export class CloneStampTool extends BaseTool {
       }
     }
 
-    this.layer.ctx.putImageData(out, 0, 0);
+    // 부분 반영: out은 레이어 전체 크기 버퍼지만 이번 호출에서 실제로 바뀐 곳은 cb 영역뿐이다
+    // (cb 밖은 이 stroke에서 한 번도 손댄 적이 없어 out과 캔버스가 이미 같은 값).
+    // 과거엔 여기서 캔버스 전체를 putImageData해 4000x4000 기준 이동 1회당 64MB를 복사했다.
+    this.layer.ctx.putImageData(out, 0, 0, cb.x, cb.y, cb.w, cb.h);
     this.layer.thumbDirty = true;
     this.app.renderer.requestRender();
   }

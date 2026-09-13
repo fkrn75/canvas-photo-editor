@@ -77,7 +77,7 @@ export class BlurSharpenSmudgeTool extends BaseTool {
     this.before = null; this.work = null; this.pickup = null; this.layer = null;
   }
 
-  onLeave() { this._hover = null; this.app.renderer.requestRender(); }
+  onLeave() { this._hover = null; this.app.renderer.requestOverlayRender(); }
 
   // a→b 구간을 보간하며 각 점에 효과를 적용
   _stampLine(a, b) {
@@ -232,8 +232,13 @@ export class BlurSharpenSmudgeTool extends BaseTool {
   }
 
   // work 버퍼를 화면에 반영
+  // 성능: this.bounds는 stroke 동안 단조 증가만 하므로(축소 없음) 그 bbox 밖 픽셀은
+  // 이 stroke에서 한 번도 _apply()가 손댄 적이 없다 — work와 캔버스가 이미 같은 값이라 복사할 필요가 없다.
+  // (과거엔 매 프레임 캔버스 전체를 putImageData로 반영해 4000x4000 기준 이동 1회당 64MB를 복사했다.)
   _flush() {
-    this.layer.ctx.putImageData(this.work, 0, 0);
+    const box = boundsToBox(this.bounds);
+    const cb = box && clampBox(box, this.layer.width, this.layer.height);
+    if (cb) this.layer.ctx.putImageData(this.work, 0, 0, cb.x, cb.y, cb.w, cb.h);
     this.layer.thumbDirty = true;
     this.app.renderer.requestRender();
   }

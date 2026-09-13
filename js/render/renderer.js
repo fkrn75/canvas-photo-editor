@@ -26,18 +26,31 @@ export class Renderer {
     c.addEventListener("pointermove", (e) => {
       const r = c.getBoundingClientRect();
       this._cursor = { x: e.clientX - r.left, y: e.clientY - r.top };
-      // 눈금자가 켜져 있을 때만 커서 추적으로 재렌더(불필요한 렌더 방지)
-      if (this.app.state?.showRulers) this._dirty = true;
+      // 눈금자가 켜져 있을 때만 커서 추적으로 재렌더(불필요한 렌더 방지).
+      // 눈금자 커서는 오버레이일 뿐 레이어 합성에 영향이 없으므로 합성/스타일 캐시는 건드리지 않는다.
+      if (this.app.state?.showRulers) this.requestOverlayRender();
     });
     c.addEventListener("pointerleave", () => {
       if (this._cursor) {
         this._cursor = null;
-        if (this.app.state?.showRulers) this._dirty = true;
+        if (this.app.state?.showRulers) this.requestOverlayRender();
       }
     });
   }
 
-  requestRender() { this._dirty = true; }
+  // 콘텐츠가 바뀌었을 수 있다는 신호(도구가 그리는 중 매 프레임 부르는 것 포함, 호출자가
+  // 어떤 레이어인지 특정하지 않음) — 안전 기본값으로 레이어 합성 캐시 전체를 무효화한다.
+  // 오버레이(마칭앤츠·눈금자 커서 등)만 바뀐 게 확실할 때는 requestOverlayRender()를 대신 쓴다.
+  // (layer-manager.js 참고: 레이어 매니저 내부 경로는 이미 정확히 무효화했으므로 이 함수 대신
+  //  requestOverlayRender()를 호출해 캐시를 이중으로 버리지 않는다.)
+  requestRender() {
+    this._dirty = true;
+    this.app.layers?.invalidate();
+  }
+
+  // 오버레이만 바뀌었을 때(레이어 합성 결과는 그대로) 다음 프레임 재렌더만 예약한다.
+  // 합성/스타일 캐시를 건드리지 않으므로 renderer.requestRender()보다 훨씬 저렴하다.
+  requestOverlayRender() { this._dirty = true; }
 
   // 뷰포트 크기 변화에 맞춰 캔버스 내부 해상도(물리 픽셀)를 갱신
   resize() {
