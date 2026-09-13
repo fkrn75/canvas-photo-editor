@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Canvas Photo Editor",
-  "version": "0.1.0",
-  "description": "포토샵 7 수준의 기본 기능을 제공하는 오프라인 이미지 에디터 (외부 라이브러리 없음)",
+  "version": "0.8.0",
+  "description": "포토샵 7 수준의 레이어·마스크·조정 레이어·레이어 스타일·펜 패스·액션·유동화까지 갖춘 완전 오프라인 이미지 에디터 (외부 라이브러리 없음)",
   "action": {
     "default_title": "이미지 에디터 열기"
   },

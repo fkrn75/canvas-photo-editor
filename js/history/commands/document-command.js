@@ -1,6 +1,8 @@
 // document-command.js — 문서 전체 변형(리사이즈/자르기/회전/뒤집기) undo/redo.
 // applyFn(lm)이 모든 레이어 캔버스를 변형한다. 실행 전/후의 모든 레이어 픽셀을 보관해 복원한다.
 
+import { EVT } from "../../core/constants.js";
+
 export class DocumentTransformCommand {
   constructor(lm, label, applyFn) {
     this.lm = lm;
@@ -76,7 +78,7 @@ export class DocumentTransformCommand {
 
   _notify() {
     this.lm.notifyStructure();
-    this.lm.app.bus.emit("document:changed", { width: this.lm.width, height: this.lm.height });
+    this.lm.app.bus.emit(EVT.DOCUMENT_CHANGED, { width: this.lm.width, height: this.lm.height });
     this.lm.app.fitIfNeeded?.();
   }
 

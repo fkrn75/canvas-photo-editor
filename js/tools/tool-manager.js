@@ -7,7 +7,6 @@ import { BucketTool } from "./bucket-tool.js";
 import { EyedropperTool } from "./eyedropper-tool.js";
 import { MoveTool } from "./move-tool.js";
 import { ShapeTool } from "./shape-tool.js";
-import { TextTool } from "./text-tool.js";
 import { MarqueeTool } from "./marquee-tool.js";
 import { LassoTool } from "./lasso-tool.js";
 import { WandTool } from "./wand-tool.js";

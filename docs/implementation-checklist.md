@@ -8,11 +8,13 @@
 
 ## 📊 현황 대시보드
 
+> 2026-09-13 갱신: iteration 1~8(v0.2.0~v0.8.0, CHANGELOG.md 근거) 전체 완료 반영. 아래 본문 체크박스는 이 표와 일치하도록 갱신됨.
+
 | 단계 | 완료 | 부분 | 미구현 |
 |---|---|---|---|
-| 🟢 핵심(MVP) | 대부분 ✅ | Marquee/Shape/Text | Gradient, 줌도구 |
-| 🟡 중급 | **iteration 1 완료(블렌드·보정·필터·선택)** | — | 마스크·Gradient 등 |
-| 🟠 고급 | — | — | 20개+ 항목 |
+| 🟢 핵심(MVP) | 전부 ✅(Marquee/Shape/Text/Gradient/줌도구 포함) | — | — |
+| 🟡 중급 | 전부 ✅(iteration 1~3: 블렌드·마스크·Gradient·보정·필터·선택·눈금자/가이드) | — | — |
+| 🟠 고급 | 대부분 ✅(iteration 4~8) | Crop 도구(핸들)·Trim/Reveal All | 예술계열 필터·Render(Lens Flare 등)·Audio Annotation |
 | 🔴 제외 | — | — | (의도적 스킵) |
 
 ## ✅ iteration 1 완료 (2026-06-14, 팀 오케스트라 4워커 병렬 + 브라우저 검증)
@@ -126,52 +128,52 @@
 - [x] **Marquee 확장**: 타원형 · 단일 행 · 단일 열 추가 `js/tools/marquee-tool.js` *(iter3 완료)*
 - [x] **Shape 확장**: 다각형(Polygon) · 둥근 사각형 `js/tools/shape-tool.js` *(iter3 완료; 커스텀 셰이프는 🟠)*
 - [x] **Zoom 도구**: 툴박스 분리(`TOOL.ZOOM` 등록 + Z 단축키) *(iter3 완료)*
-- [ ] **Text 보강**: 확정 후 재편집(현재 래스터 확정 후 수정 불가) → 텍스트 레이어 데이터 보존
+- [x] **Text 보강**: 확정 후 재편집 → 텍스트 레이어 데이터(문자열/글꼴/크기/색/자간/행간/정렬) 보존, T로 재클릭 시 재편집 *(iter6: `js/text/text-layer.js`, TextToolV)*
 
 ---
 
-## 🟡 중급 — "그림판 → 진짜 포토샵 클론" 핵심 (16)
+## 🟡 중급 — "그림판 → 진짜 포토샵 클론" 핵심 (16) — **전부 완료**
 
 ### 레이어 합성
-- [ ] **블렌드 모드 24종** ⭐최우선
-  - [ ] `js/layers/layer.js`에 `blendMode` 속성 추가
-  - [ ] `js/layers/layer-manager.js:134` `compositeTo()`에 `ctx.globalCompositeOperation = ...` 적용 (현재 없음 → Normal만 동작)
-  - [ ] 네이티브 16종 매핑: multiply/screen/overlay/darken/lighten/color-dodge/color-burn/hard-light/soft-light/difference/exclusion/hue/saturation/color/luminosity(+normal)
-  - [ ] per-pixel 커스텀 8종: Dissolve, Behind(`destination-over`), Clear(`destination-out`), **Linear Burn**, **Linear Dodge**(`lighter` 근사), **Vivid Light**, **Linear Light**, **Pin Light**
-  - [ ] `js/ui/layers-panel.js`에 블렌드 모드 드롭다운 UI + `LayerPropCommand` undo 연동
-- [ ] **레이어 마스크** ⭐
-  - [ ] `js/layers/layer.js`에 마스크 캔버스 속성
-  - [ ] `compositeTo()`에서 마스크 알파 적용
-  - [ ] layers-panel 마스크 썸네일 + 추가/삭제/활성화, 마스크에 브러시 페인팅
-- [ ] **클리핑 마스크** (Group with Previous, Ctrl+G) — 아래 레이어 알파로 클립
-- [ ] **Merge Visible**(Shift+Ctrl+E) `js/layers/layer-manager.js`(현재 Merge Down만)
-- [ ] **레이어 Lock**: 투명/이미지/위치 잠금 + **Fill Opacity**(opacity와 분리)
+- [x] **블렌드 모드 22종** ⭐최우선 *(iter1, `js/engine/blend.js`)*
+  - [x] `js/layers/layer.js`에 `blendMode` 속성 추가
+  - [x] `js/layers/layer-manager.js` 합성 경로에서 `blendLayerOnto()`로 블렌드 모드 적용
+  - [x] 네이티브 16종 매핑: multiply/screen/overlay/darken/lighten/color-dodge/color-burn/hard-light/soft-light/difference/exclusion/hue/saturation/color/luminosity(+normal)
+  - [x] per-pixel 커스텀 6종: Dissolve, **Linear Burn**, **Linear Dodge**, **Vivid Light**, **Linear Light**, **Pin Light** (Behind/Clear는 PS7상 페인팅 전용이라 레이어 블렌드 목록에서 의도적 제외)
+  - [x] `js/ui/layers-panel.js`에 블렌드 모드 드롭다운 UI + undo 연동
+- [x] **레이어 마스크** ⭐ *(iter2)*
+  - [x] `js/layers/layer.js`에 마스크 캔버스 속성
+  - [x] 합성 시 마스크 휘도(alpha) 적용 (`buildEffectiveSource`)
+  - [x] layers-panel 마스크 썸네일 + 추가/삭제/활성화, 마스크에 브러시 페인팅
+- [x] **클리핑 마스크** (Ctrl+G) — 아래 레이어 알파로 클립 *(iter2)*
+- [x] **Merge Visible**(Shift+Ctrl+E) `js/layers/layer-manager.js` *(iter1)*
+- [x] **레이어 Lock**: 투명/이미지/위치 잠금 + **Fill Opacity**(opacity와 분리) *(iter2)*
 
 ### 도구
-- [ ] **Gradient 도구** ⭐: `js/tools/gradient-tool.js` 신설, `TOOL.GRADIENT` 추가
-  - [ ] Linear/Radial(+ Angle/Reflected/Diamond), 전경→배경/전경→투명, Reverse/Dither, 옵션바
+- [x] **Gradient 도구** ⭐: `js/tools/gradient-tool.js`, `TOOL.GRADIENT` *(iter2)*
+  - [x] Linear/Radial/Angle/Reflected/Diamond 5종, 전경→배경/전경→투명, Reverse/Opacity, Shift 45°, 옵션바
 - [x] **Stroke**(선택영역 외곽선 그리기) — Edit 메뉴 *(iter3 완료)*
 
 ### 선택
-- [ ] **Inverse**(Shift+Ctrl+I) — ⚠️ 미구현 (명세서엔 오기였음)
-- [ ] **Feather**(Alt+Ctrl+D) — 선택 가장자리 흐리기
-- [ ] **Modify**: Border / Smooth / Expand / Contract
-- [ ] **Grow / Similar** (인접·전체 유사색)
-- [ ] **Color Range**(색상 기준 선택)
-- [ ] **Save/Load Selection**(알파 채널 ↔ 선택)
+- [x] **Inverse**(Shift+Ctrl+I) *(iter1)*
+- [x] **Feather**(Alt+Ctrl+D) — 선택 가장자리 흐리기 *(iter1)*
+- [x] **Modify**: Border / Smooth / Expand / Contract *(iter1)*
+- [x] **Grow / Similar** (인접·전체 유사색) *(iter2)*
+- [x] **Color Range**(색상 기준 선택) *(iter2)*
+- [x] **Save/Load Selection**(알파 채널 ↔ 선택) *(iter2)*
 - [x] **Quick Mask 모드**(Q) *(iter3 완료)*
 
 ### 보정 (메뉴 연결)
-- [ ] **Channel Mixer UI** — 엔진(`adjustments.channelMixer`) 이미 완성, **다이얼로그만 연결**하면 됨 (가성비 최고)
-- [ ] Color Balance(Ctrl+B) / Threshold / Posterize / Gradient Map / Equalize
+- [x] **Channel Mixer UI** — 엔진 재사용 + 다이얼로그 연결 완료 *(iter1)*
+- [x] Color Balance / Threshold / Posterize / Gradient Map / Equalize *(iter1)*
 
 ### 필터
-- [ ] Unsharp Mask(다이얼로그) / Motion Blur / Median / Dust & Scratches
-- [ ] Pixelate(Mosaic/Crystallize/Color Halftone) / Stylize(Find Edges/Solarize/Diffuse)
-- [ ] Other(High Pass / **Custom 컨볼루션 커널**) / Invert는 보정에 있음
+- [x] Unsharp Mask(다이얼로그) / Motion Blur / Median *(iter1)* — Dust & Scratches는 미구현
+- [x] Mosaic / Find Edges *(iter1)* — Crystallize/Color Halftone·Solarize/Diffuse는 미구현
+- [x] High Pass *(iter1)* — Custom 컨볼루션 커널 UI는 미구현. Invert는 보정 메뉴에 있음
 
 ### 기타
-- [ ] **눈금자/가이드/그리드** (`state.pixelGrid` 필드만 존재, 렌더러 미사용)
+- [x] **눈금자/가이드/그리드**(Ctrl+R, 새 가이드/지우기, 그리드 표시) *(iter2)*
 - [x] **Save for Web** 다이얼로그(포맷/품질/미리보기) *(iter3 완료)*
 - [x] **Swatches 팔레트** 확장(견본 추가/삭제/초기화·localStorage) *(iter3 완료)*
 
@@ -180,40 +182,40 @@
 ## 🟠 고급 — 전문 기능 (장기, 20+)
 
 ### 벡터 · 타이포
-- [x] **Pen 도구 + 패스**(베지어): Pen + Add·Delete Anchor + Paths 팔레트(선택/채우기/획) *(iter5)*. (Freeform/Convert Point는 후속)
-- [ ] **Vector Mask / 셰이프 레이어**
-- [ ] **벡터 텍스트 레이어**(재편집 가능) + **Character/Paragraph 팔레트** + Warp Text + 안티앨리어스 모드
+- [x] **Pen 도구 + 패스**(베지어): Pen + Add·Delete Anchor + Paths 팔레트(선택/채우기/획) *(iter5)*. Freeform 펜 + Convert Point(Alt+앵커 코너↔곡선)는 *iter7*
+- [x] **Vector Mask / 셰이프 레이어** *(iter6: 펜 패스→그레이스케일 마스크 클립, 셰이프 레이어 단축키 A)*
+- [x] **벡터 텍스트 레이어**(재편집 가능) + **Character 팔레트** *(iter6)*. Warp Text · Paragraph 팔레트 · 안티앨리어스 모드 선택 UI는 미구현
 
 ### 레이어 고급
-- [◐] **레이어 스타일**: Drop Shadow / Outer Glow / Stroke / Color Overlay 구현 *(iter4)*. (Inner Shadow/Glow · Bevel/Emboss · Satin · Gradient/Pattern Overlay · Styles 팔레트는 후속)
-- [x] **조정 레이어**(비파괴 보정 + 마스크) *(iter5: 밝기대비·색조채도·레벨·포스터화·한계값·반전·흑백)*
+- [x] **레이어 스타일 10종**: Drop Shadow / Outer Glow / Stroke / Color Overlay *(iter4)* + Inner Shadow / Inner Glow / Bevel·Emboss / Satin / Gradient Overlay / Pattern Overlay *(iter7)* + Styles 팔레트(프리셋 9종·절차적 패턴 6종, localStorage) *(iter7)*
+- [x] **조정 레이어**(비파괴 보정 + 마스크): 밝기대비·색조채도·레벨·커브·포스터화·한계값·반전·흑백 *(iter5 기본 7종 + iter7 레벨/커브 조정레이어)*
 - [x] **채널 팔레트** UI(채널별 LUT 엔진은 이미 존재) *(iter5: R/G/B/A 보기·채널→선택)*
 
 ### 히스토리
 - [x] **히스토리 팔레트**(단계 목록 클릭 이동) + **스냅샷** *(iter4)* + Step Forward/Backward UI
 
 ### 리터칭 · 페인팅 도구
-- [ ] Healing Brush / Patch (7.0 간판 기능)
+- [x] Healing Brush(K) / Patch(C) (7.0 간판 기능) *(iter6)*
 - [x] Clone Stamp *(iter4)* / Pattern Stamp *(iter5)*
-- [◐] History Brush *(iter5)* / Art History Brush(후속)
+- [x] History Brush *(iter5)* / Art History Brush(F) *(iter7)*
 - [x] Dodge / Burn / Sponge *(iter4)*
 - [x] Blur / Sharpen / Smudge (도구형) *(iter4)*
 
 ### 변형 · 자르기
 - [x] **Free Transform**(핸들 UI): Scale / Rotate / Skew / Distort / Perspective *(iter4)*
-- [ ] Crop 도구(드래그 핸들·Shield) / Trim / Reveal All
+- [ ] Crop 도구(드래그 핸들·Shield) / Trim / Reveal All — 미구현(현재는 메뉴의 "선택 영역으로 자르기"만 존재)
 
 ### 필터 · 자동화
-- [ ] 예술계열 필터: Artistic(15) / Sketch(14) / Brush Strokes(8) / Texture(6) / Distort(12)
-- [ ] Render: Lens Flare / Lighting Effects / Clouds
-- [ ] **Liquify** / **Pattern Maker**(7.0 신기능)
-- [ ] **Actions(매크로)** 녹화·재생 + Batch
+- [ ] 예술계열 필터: Artistic(15) / Sketch(14) / Brush Strokes(8) / Texture(6) / Distort(12) — 미구현
+- [ ] Render: Lens Flare / Lighting Effects / Clouds — 미구현
+- [x] **Liquify**(밀기/오목/볼록/소용돌이) / **Pattern Maker**(7.0 신기능) *(iter6)*
+- [x] **Actions(매크로)** 녹화·재생 + Actions 팔레트 *(iter6)*. Batch 처리는 미구현
 
 ### 7.0 신기능 · 모드
-- [ ] File Browser / Tool Presets 팔레트
-- [ ] Brushes 팔레트 풀(Scatter/Texture/Dual/Color Dynamics) — 현재 크기/경도/타입만
-- [ ] 이미지 모드: Grayscale/Indexed Color/Bitmap 변환 + Color Table
-- [ ] Notes/Audio Annotation, Measure/Color Sampler 도구
+- [x] File Browser(IndexedDB, LRU 30·세션영속) *(iter8)* / Tool Presets 팔레트 *(iter7)*
+- [x] Brushes 팔레트 풀: Shape/Scatter/Color/Dual Dynamics *(iter7)* + Texture/Noise 동역학 *(iter8)*
+- [x] 이미지 모드: Grayscale/Indexed Color/Bitmap 변환 + Color Table *(iter6)*
+- [x] Notes(N, 메모 마커) / Measure(거리·각도) / Color Sampler(최대 4샘플) 도구 *(iter8)*. **Audio Annotation은 미구현**(브라우저 마이크 녹음 저장 구조 필요 — 후속 과제)
 
 ---
 
