@@ -16,6 +16,7 @@ export const EVT = {
   CURSOR_INFO: "cursor:info",              // 상태바 좌표 표시 {x, y}
   STATUS_MSG: "status:msg",                // 상태바 메시지 {text}
   IMAGE_STORED: "image:stored",            // File Browser(IndexedDB)에 이미지 저장됨 — 패널 갱신 신호
+  FILE_SAVED: "file:saved",                // 파일 저장(PNG/JPG) 완료 — toBlob 콜백 완료 시점(app.dirty 해제 타이밍용)
 };
 
 // 도구 ID

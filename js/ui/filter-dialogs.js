@@ -3,6 +3,10 @@
 // app.dialogs.custom() 모달을 사용한다. 슬라이더 입력 시 h.apply(compute)로 실시간 미리보기.
 
 import * as Filters from "../engine/filters.js";
+// [적용] 클릭 시 무거운 최종 계산(h.commit)이 커서/상태바에 "처리 중"으로 먼저 반영되도록 감싼다.
+// 이 다이얼로그들은 액션(매크로) 재생에 쓰이지 않으므로(주석 참고: actions-manager.js는
+// app.applyFilter만 재생) 프레임을 건너뛰는 비동기 runBusy를 안전하게 쓸 수 있다.
+import { runBusy } from "./busy.js";
 
 // 슬라이더 행 생성 헬퍼. body에 추가하고, 값 변경 시 onInput을 호출한다.
 // scale: 표시값 배율(예: 0.01 → 50을 "50%"가 아니라 0.5로 쓰되 배지엔 정수로), suffix: 배지 단위.
@@ -44,7 +48,7 @@ export function openUnsharpMask(app) {
   slider(body, "임계값", { min: 0, max: 255, step: 1, value: v.threshold },
     (n) => { v.threshold = n; h.apply(compute); });
 
-  app.dialogs.custom("언샤프 마스크", body, () => h.commit(compute, "언샤프 마스크"), () => h.cancel(), "적용");
+  app.dialogs.custom("언샤프 마스크", body, () => runBusy(app, "언샤프 마스크", () => h.commit(compute, "언샤프 마스크")), () => h.cancel(), "적용");
   h.apply(compute); // 초기 미리보기
 }
 
@@ -63,7 +67,7 @@ export function openMotionBlur(app) {
   slider(body, "거리", { min: 1, max: 200, step: 1, value: v.distance, suffix: "px" },
     (n) => { v.distance = n; h.apply(compute); });
 
-  app.dialogs.custom("모션 블러", body, () => h.commit(compute, "모션 블러"), () => h.cancel(), "적용");
+  app.dialogs.custom("모션 블러", body, () => runBusy(app, "모션 블러", () => h.commit(compute, "모션 블러")), () => h.cancel(), "적용");
   h.apply(compute); // 초기 미리보기
 }
 
@@ -80,7 +84,7 @@ export function openMedian(app) {
   slider(body, "반경", { min: 1, max: 5, step: 1, value: v.radius, suffix: "px" },
     (n) => { v.radius = n; h.apply(compute); });
 
-  app.dialogs.custom("미디언", body, () => h.commit(compute, "미디언"), () => h.cancel(), "적용");
+  app.dialogs.custom("미디언", body, () => runBusy(app, "미디언", () => h.commit(compute, "미디언")), () => h.cancel(), "적용");
   h.apply(compute); // 초기 미리보기
 }
 
@@ -97,7 +101,7 @@ export function openMosaic(app) {
   slider(body, "셀 크기", { min: 2, max: 100, step: 1, value: v.cell, suffix: "px" },
     (n) => { v.cell = n; h.apply(compute); });
 
-  app.dialogs.custom("모자이크", body, () => h.commit(compute, "모자이크"), () => h.cancel(), "적용");
+  app.dialogs.custom("모자이크", body, () => runBusy(app, "모자이크", () => h.commit(compute, "모자이크")), () => h.cancel(), "적용");
   h.apply(compute); // 초기 미리보기
 }
 
@@ -114,6 +118,6 @@ export function openHighPass(app) {
   slider(body, "반경", { min: 1, max: 100, step: 1, value: v.radius, suffix: "px" },
     (n) => { v.radius = n; h.apply(compute); });
 
-  app.dialogs.custom("하이 패스", body, () => h.commit(compute, "하이 패스"), () => h.cancel(), "적용");
+  app.dialogs.custom("하이 패스", body, () => runBusy(app, "하이 패스", () => h.commit(compute, "하이 패스")), () => h.cancel(), "적용");
   h.apply(compute); // 초기 미리보기
 }

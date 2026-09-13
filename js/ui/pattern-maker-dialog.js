@@ -9,6 +9,10 @@
 // 패턴 도장 도구가 활성 상태면 옵션바를 다시 그려 새 패턴이 즉시 목록에 보이게 한다.
 
 import { generateTile, tilePreview } from "../patterns/pattern-maker.js";
+// [패턴으로 저장] 최종 적용 경로용. savePattern 자체는 가볍지만(캐시된 타일을 배열에 push)
+// 다른 필터 다이얼로그와 일관된 진행 표시 관례를 위해 감싼다. 슬라이더 입력마다 도는
+// render()(미리보기)는 감싸지 않는다 — 타이핑마다 커서가 깜빡이는 걸 막기 위함.
+import { runBusy } from "./busy.js";
 
 let _patSeq = 0; // 사용자 패턴 이름 일련번호
 
@@ -124,7 +128,7 @@ export function openPatternMaker(app) {
 
   // ── 모달 열기 ──
   app.dialogs.custom("패턴 메이커", body,
-    () => savePattern(app, lastTile),
+    () => runBusy(app, "패턴 저장", () => savePattern(app, lastTile)),
     null,
     "패턴으로 저장");
 }

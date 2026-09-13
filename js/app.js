@@ -41,6 +41,15 @@ import { NotesManager } from "./notes/notes-manager.js";
 import { NotesOverlay } from "./ui/notes-overlay.js";
 import { initPanelCollapse } from "./ui/panel-collapse.js";
 import { initPanelDock } from "./ui/panel-dock.js";
+import { runBusySync } from "./ui/busy.js";
+
+// 이미지/캔버스 크기 안전장치 — 매우 큰 캔버스는 브라우저에서 느려지거나 멈출 수 있다.
+// (문서 크기 정책은 app.js 전용이라 constants.js 대신 로컬 상수로 둔다.)
+const IMAGE_WARN_PIXELS = 8192 * 8192;  // 이 총 픽셀수를 넘으면 확인 다이얼로그로 경고
+const IMAGE_MAX_SIDE = 16384;           // 한 변 절대 상한(Canvas 실제 한계보다 보수적) — 초과 시 무조건 거부
+
+// 같은 오류 메시지를 1초 안에 다시 상태바에 띄우지 않기 위한 중복 억제 창(ms).
+const ERROR_DEDUP_MS = 1000;
 
 class App {
   constructor() {
@@ -48,6 +57,7 @@ class App {
     this.state = new AppState(this.bus);
     this.docName = "untitled";
     this.isBlankDoc = true;
+    this.dirty = false; // 저장되지 않은 변경사항 존재 여부(beforeunload 경고에 사용)
 
     // 코어 매니저 (생성 순서 주의: 서로 app을 통해 참조)
     this.layers = new LayerManager(this);
@@ -62,6 +72,10 @@ class App {
     this.notes = new NotesManager(this);   // 노트(주석) 모델 — tools보다 먼저 생성
     this.tools = new ToolManager(this, this.canvas);
     this.fileIO = new FileIO(this);
+    // 저장 완료 시 dirty 해제: file-io.js가 canvas.toBlob 콜백(진짜 저장 완료 시점)에서
+    // EVT.FILE_SAVED를 발행하므로 그 이벤트를 구독한다 — "저장 호출 시점"이
+    // 아니라 실제 완료 시점에 맞춰 dirty를 내리므로 toBlob 실패 시에도 잘못 해제되지 않는다.
+    this.bus.on(EVT.FILE_SAVED, () => { this.dirty = false; });
     this.clipboard = new Clipboard(this);
     this.dialogs = new Dialogs(this);
     this.imageMode = new ImageModeController(this);   // 이미지 모드(회색조/인덱스/비트맵) 상태+변환
@@ -93,9 +107,11 @@ class App {
 
     this._bindStatus();
     this._bindGlobalKeys();
+    this._bindUnsavedGuard();
+    this._bindErrorHandlers();
 
-    // 그리기 시작(히스토리 발생) 시 빈 문서 플래그 해제
-    this.bus.on(EVT.HISTORY_CHANGED, ({ canUndo }) => { if (canUndo) this.isBlankDoc = false; });
+    // 그리기 시작(히스토리 발생) 시 빈 문서 플래그 해제 + dirty 표시
+    this.bus.on(EVT.HISTORY_CHANGED, ({ canUndo }) => { if (canUndo) { this.isBlankDoc = false; this.dirty = true; } });
 
     // 초기 문서
     this.newDocument(DEFAULT_DOC.width, DEFAULT_DOC.height, { blank: true });
@@ -136,10 +152,41 @@ class App {
     this.renderer.requestRender();
   }
 
+  // 저장하지 않은 변경사항이 있으면 탭 닫기/새로고침 시 브라우저 기본 경고를 띄운다.
+  // (returnValue 설정이 곧 "확인 필요" 신호 — 실제 문구는 브라우저가 자체 렌더링한다.)
+  _bindUnsavedGuard() {
+    window.addEventListener("beforeunload", (e) => {
+      if (!this.dirty) return;
+      e.preventDefault();
+      e.returnValue = "";
+    });
+  }
+
+  // 잡히지 않은 예외/거부된 프라미스를 상태바에 노출해 무통지 고착을 막는다.
+  // 같은 메시지가 짧은 시간 안에 반복되면(예: 렌더 루프 안 오류) 한 번만 표시한다.
+  _bindErrorHandlers() {
+    const report = (err) => {
+      const msg = (err && err.message) || String(err);
+      console.error("[App] 처리되지 않은 오류:", err);
+      const now = Date.now();
+      if (msg === this._lastErrorMsg && now - this._lastErrorAt < ERROR_DEDUP_MS) return;
+      this._lastErrorMsg = msg;
+      this._lastErrorAt = now;
+      this.status(`오류: ${msg}`);
+    };
+    window.addEventListener("error", (e) => report(e.error || e.message));
+    window.addEventListener("unhandledrejection", (e) => report(e.reason));
+  }
+
   // ── 문서 ──
-  newDocument(w, h, { image = null, blank = false } = {}) {
+  // 크기 확인(_guardLargeSize) 통과 후 실제 생성으로 진행. w/h는 이미 정수로 반올림된 값이어야 한다.
+  newDocument(w, h, opts = {}) {
     w = Math.max(1, Math.round(w));
     h = Math.max(1, Math.round(h));
+    this._guardLargeSize(w, h, () => this._createDocument(w, h, opts));
+  }
+
+  _createDocument(w, h, { image = null, blank = false } = {}) {
     this.selection.clear();
     this.history.clear();
     this.layers.init(w, h, { fillBackground: !image });
@@ -152,22 +199,39 @@ class App {
     } else {
       this.isBlankDoc = blank;
     }
+    this.dirty = false; // 새 문서는 저장할 변경사항이 없는 상태로 시작
     this.layers.notifyStructure();
     this.viewport.fit(w, h);
     this._updateSize();
     this.renderer.requestRender();
   }
 
+  // 매우 큰 캔버스 안전장치. 한 변 절대 상한을 넘으면 무조건 거부, 총 픽셀수가 경고 상한을
+  // 넘으면 확인 다이얼로그 후 proceed()를 호출한다(둘 다 아니면 즉시 proceed).
+  _guardLargeSize(w, h, proceed) {
+    if (w > IMAGE_MAX_SIDE || h > IMAGE_MAX_SIDE) {
+      this.status(`이미지가 너무 큽니다(${w}×${h}). 한 변이 ${IMAGE_MAX_SIDE}px를 넘을 수 없습니다.`);
+      return;
+    }
+    if (w * h <= IMAGE_WARN_PIXELS) { proceed(); return; }
+    const body = document.createElement("div");
+    body.style.cssText = "max-width:320px;line-height:1.5;";
+    body.textContent = `이미지가 매우 큽니다(${w}×${h}). 계속하면 느려지거나 멈출 수 있습니다. 계속하시겠습니까?`;
+    this.dialogs.custom("큰 이미지 경고", body, proceed, null, "계속");
+  }
+
   // 열기 정책: 빈 문서면 그 이미지로 새 문서, 작업 중이면 새 레이어로 추가
   placeImage(img, name) {
     const w = img.naturalWidth || img.width;
     const h = img.naturalHeight || img.height;
-    if (this.isBlankDoc) {
-      this.docName = name || "image";
-      this.newDocument(w, h, { image: img });
-    } else {
-      this.layers.addLayer({ name: name || "가져온 이미지", image: img });
-    }
+    this._guardLargeSize(w, h, () => {
+      if (this.isBlankDoc) {
+        this.docName = name || "image";
+        this._createDocument(w, h, { image: img });
+      } else {
+        this.layers.addLayer({ name: name || "가져온 이미지", image: img });
+      }
+    });
   }
 
   // 변형 후 화면 맞춤 (DocumentTransformCommand가 호출)
@@ -426,17 +490,26 @@ class App {
   }
 
   // 슬라이더 없는 즉시 적용 필터. fn(imageData)
+  // ⚠️ 이 메서드는 메뉴(menu-bar.js)뿐 아니라 actions-manager.js의 재생 루프에서도
+  // 동기적으로 여러 번 연달아 호출된다(다음 스텝이 이전 스텝의 커밋 결과를 곧바로 읽음).
+  // 따라서 여기서 진행 표시를 걸 때는 프레임을 건너뛰는 runBusy(비동기)가 아니라
+  // runBusySync(같은 틱에서 즉시 실행)를 써서 반환/동기성 계약을 그대로 유지한다.
+  // 실제로 느린 필터(언샤프 마스크/모션 블러/미디언/모자이크/하이패스/유동화)는 모두
+  // 다이얼로그의 [적용] 버튼(filter-dialogs.js/liquify-dialog.js)에서 처리되는데, 그 경로는
+  // 액션 재생에 쓰이지 않으므로 그쪽엔 진짜 프레임-지연 runBusy를 적용했다.
   applyFilter(title, fn) {
     const layer = this.layers.activeLayer;
     if (!layer) { this.status("레이어가 없습니다."); return; }
-    const original = layer.snapshot();
-    const img = this._clone(original);
-    fn(img);
-    if (this.selection.active) this.selection.clipImageData(img, original, { x: 0, y: 0, w: layer.width, h: layer.height });
-    this.history.beginPixelEdit(layer);
-    layer.ctx.putImageData(img, 0, 0);
-    layer.thumbDirty = true;
-    this.history.commitPixelEdit(null, title);
+    runBusySync(this, title, () => {
+      const original = layer.snapshot();
+      const img = this._clone(original);
+      fn(img);
+      if (this.selection.active) this.selection.clipImageData(img, original, { x: 0, y: 0, w: layer.width, h: layer.height });
+      this.history.beginPixelEdit(layer);
+      layer.ctx.putImageData(img, 0, 0);
+      layer.thumbDirty = true;
+      this.history.commitPixelEdit(null, title);
+    });
   }
 
   // 슬라이더 미리보기 보정. computeFn(imageData, values)

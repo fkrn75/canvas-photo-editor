@@ -508,3 +508,7 @@ input[type="checkbox"] { accent-color: var(--accent); }
 ::-webkit-scrollbar-thumb:hover { background: #6e6e6e; }
 
 .hidden { display: none !important; }
+
+/* 작업 처리 중(busy.js가 document.body에 건다). 커서는 busy.js가 인라인으로도
+   직접 지정하지만, 그 외 전체 클릭 표면에도 대기 커서를 일관되게 보여주기 위한 보강. */
+body.busy { cursor: wait; }

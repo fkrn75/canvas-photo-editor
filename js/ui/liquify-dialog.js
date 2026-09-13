@@ -9,6 +9,10 @@
 // 렌더링 엔진은 filters/liquify.js (LiquifyMesh). 다이얼로그는 UI/입력만 담당.
 
 import { LiquifyMesh, LIQUIFY_MODE } from "../filters/liquify.js";
+// [적용] 클릭 시 mesh.result() 합성 + putImageData가 큰 이미지에서 무거울 수 있어
+// 커서/상태바를 먼저 "처리 중"으로 갱신한 뒤 실행한다. 이 다이얼로그는 액션 재생에
+// 쓰이지 않으므로(재생은 app.applyFilter 경로만 씀) 비동기 runBusy가 안전하다.
+import { runBusy } from "./busy.js";
 
 export function openLiquify(app) {
   const layer = app.layers?.activeLayer;
@@ -171,11 +175,13 @@ export function openLiquify(app) {
   app.dialogs.custom("픽셀 유동화", body,
     () => { // 적용: 결과를 레이어에 픽셀 편집으로 커밋
       app.state.set("liquifyStrength", strength); // 마지막 세기 기억
-      app.history.beginPixelEdit(layer);
-      layer.ctx.putImageData(mesh.result(), 0, 0);
-      layer.thumbDirty = true;
-      app.history.commitPixelEdit({ x: 0, y: 0, w: W, h: H }, "픽셀 유동화");
-      app.renderer.requestRender();
+      runBusy(app, "픽셀 유동화", () => {
+        app.history.beginPixelEdit(layer);
+        layer.ctx.putImageData(mesh.result(), 0, 0);
+        layer.thumbDirty = true;
+        app.history.commitPixelEdit({ x: 0, y: 0, w: W, h: H }, "픽셀 유동화");
+        app.renderer.requestRender();
+      });
     },
     () => { /* 취소: 아무것도 하지 않음(레이어 원본 그대로) */ },
     "적용");

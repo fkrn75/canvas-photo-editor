@@ -4,6 +4,8 @@
 // 예상 용량은 canvas.toBlob로 실제 blob.size를 측정해 표시한다.
 // select-dialogs.js의 모달 패턴(custom body + app.dialogs.custom)을 따른다.
 
+import { sanitizeFileName } from "../io/file-io.js";
+
 // 합성 결과 캔버스를 만든다. JPEG는 투명을 지원하지 않으므로 흰 배경 위에 합성한다.
 // (file-io.js의 save()와 동일한 정책)
 function compositeCanvas(app, format) {
@@ -139,7 +141,7 @@ export function openSaveForWeb(app) {
   const download = (blob) => {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${app.docName || "untitled"}.${format === "jpeg" ? "jpg" : "png"}`;
+    a.download = `${sanitizeFileName(app.docName)}.${format === "jpeg" ? "jpg" : "png"}`;
     document.body.appendChild(a);
     a.click();
     a.remove();

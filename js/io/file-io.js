@@ -2,6 +2,21 @@
 
 import { EVT } from "../core/constants.js";
 
+// 파일명 sanitize: 경로구분자·제어문자 제거 + 앞뒤 공백/점 제거 + 빈 값 대체 + 길이 제한.
+// 다운로드 파일명(문서명 기반)에 그대로 쓰면 OS별 금지문자나 숨김파일(.으로 시작) 문제가
+// 생길 수 있어 file-io.js/save-for-web.js 양쪽에서 공용으로 사용한다.
+export function sanitizeFileName(name) {
+  let s = String(name ?? "")
+    .replace(/[/\\:*?"<>|]/g, "")   // 경로구분자 + Windows 금지문자
+    .replace(/[\x00-\x1f\x7f]/g, "") // 제어문자
+    .trim()
+    .replace(/^\.+|\.+$/g, "")      // 앞뒤 점 제거(숨김파일/확장자 오인 방지)
+    .trim();
+  if (!s) s = "untitled";
+  if (s.length > 120) s = s.slice(0, 120);
+  return s;
+}
+
 export class FileIO {
   constructor(app) {
     this.app = app;
@@ -82,12 +97,13 @@ export class FileIO {
       if (!blob) { this.app.status("저장 실패"); return; }
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `${this.app.docName || "untitled"}.${format}`;
+      a.download = `${sanitizeFileName(this.app.docName)}.${format}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
       this.app.status(`저장: ${a.download}`);
+      this.app.bus.emit(EVT.FILE_SAVED);
     }, mime, quality);
   }
 }

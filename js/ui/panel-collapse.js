@@ -6,10 +6,20 @@
 
 const LS_KEY = "cpe.collapsedPanels";
 
-// 저장된 접힘 패널 id 배열 읽기(파싱 실패 시 빈 배열).
+// 첫 실행(저장된 접힘 상태가 전혀 없을 때)에만 적용할 기본 접힘 패널 id 목록.
+// 펼침 유지 = 레이어·색상 견본(Swatches)·히스토리, 나머지 우측 패널은 접힘.
+const DEFAULT_COLLAPSED = [
+  "styles-panel", "channels-panel", "paths-panel", "character-panel",
+  "shape-panel", "brushes-panel", "actions-panel", "tool-presets-panel",
+  "file-browser-panel",
+];
+
+// 저장된 접힘 패널 id 배열 읽기. 키가 아예 없으면(첫 실행) null, 파싱 실패 시 빈 배열.
 function load() {
   try {
-    const v = JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw == null) return null;
+    const v = JSON.parse(raw);
     return Array.isArray(v) ? v : [];
   } catch {
     return [];
@@ -32,11 +42,17 @@ function saveAll() {
 export function initPanelCollapse(root) {
   if (!root) return;
 
-  // 1) 저장된 접힘 상태 복원(패널이 어느 컨테이너에 있든 document 전역에서 찾는다)
-  for (const id of load()) {
+  // 1) 저장된 접힘 상태 복원(패널이 어느 컨테이너에 있든 document 전역에서 찾는다).
+  // 저장된 상태가 전혀 없으면(첫 실행) DEFAULT_COLLAPSED를 적용하고, 있으면 그 값을 그대로 따른다
+  // (사용자가 직접 편 패널을 덮어쓰지 않기 위해 저장된 상태가 있을 땐 기본값을 절대 섞지 않는다).
+  const saved = load();
+  const ids = saved == null ? DEFAULT_COLLAPSED : saved;
+  for (const id of ids) {
     const p = document.getElementById(id);
     if (p && p.classList.contains("panel")) p.classList.add("collapsed");
   }
+  // 첫 실행에 적용한 기본값을 즉시 저장해 두어, 다음 로드부터는 "저장된 상태 있음"으로 취급되게 한다.
+  if (saved == null) saveAll();
 
   // 2) 헤더 클릭 토글(이벤트 위임). 헤더 안의 조작 요소(버튼/입력 등)는 접기 대상에서 제외.
   root.addEventListener("click", (e) => {

@@ -1,6 +1,9 @@
 // dialogs.js — 모달 다이얼로그. 폼 입력(새 문서/리사이즈)과 슬라이더 미리보기(보정/필터)를 제공.
 
 export class Dialogs {
+  // aria-labelledby용 헤더 id를 다이얼로그마다 유일하게 만들기 위한 카운터.
+  static _seq = 0;
+
   constructor(app) {
     this.app = app;
     this.root = document.getElementById("dialog-root");
@@ -10,34 +13,74 @@ export class Dialogs {
   _open(title, body, onOk, onCancel, okText = "확인") {
     const backdrop = document.createElement("div");
     backdrop.className = "dialog-backdrop";
-    backdrop.innerHTML = `
-      <div class="dialog">
-        <div class="dialog-head">${title}</div>
-        <div class="dialog-body"></div>
-        <div class="dialog-foot">
-          <button class="cancel">취소</button>
-          <button class="ok primary">${okText}</button>
-        </div>
-      </div>`;
-    backdrop.querySelector(".dialog-body").appendChild(body);
+
+    // title은 사용자/파일 데이터(문서명 등)에서 올 수 있어 innerHTML 보간 대신
+    // DOM API로 넣는다(유일한 innerHTML 사용자 데이터 경로였던 부분 제거).
+    const dialog = document.createElement("div");
+    dialog.className = "dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    const headId = `dialog-head-${++Dialogs._seq}`;
+    dialog.setAttribute("aria-labelledby", headId);
+
+    const head = document.createElement("div");
+    head.className = "dialog-head";
+    head.id = headId;
+    head.textContent = title;
+
+    const bodyWrap = document.createElement("div");
+    bodyWrap.className = "dialog-body";
+    bodyWrap.appendChild(body);
+
+    const foot = document.createElement("div");
+    foot.className = "dialog-foot";
+    const cancelBtn = document.createElement("button");
+    cancelBtn.className = "cancel";
+    cancelBtn.textContent = "취소";
+    const okBtn = document.createElement("button");
+    okBtn.className = "ok primary";
+    okBtn.textContent = okText;
+    foot.append(cancelBtn, okBtn);
+
+    dialog.append(head, bodyWrap, foot);
+    backdrop.appendChild(dialog);
     this.root.appendChild(backdrop);
+
+    // 열기 전 포커스를 기억해 뒀다가 닫힐 때 복원한다(접근성: 모달 진입/이탈 시 포커스 왕복).
+    const prevFocus = document.activeElement;
 
     // close는 모든 닫기 경로(확인/취소/Esc/Enter/백드롭)에서 호출되므로
     // 여기서 keydown 리스너를 일괄 해제한다(마우스 클릭으로 닫을 때 핸들러가 잔류해
     // Enter로 onOk가 다시 호출되던 누수/이중 실행 방지).
-    const close = () => { backdrop.remove(); window.removeEventListener("keydown", keyHandler, true); };
+    const close = () => {
+      backdrop.remove();
+      window.removeEventListener("keydown", keyHandler, true);
+      if (prevFocus?.focus) prevFocus.focus();
+    };
     const cancel = () => { onCancel?.(); close(); };
-    backdrop.querySelector(".ok").addEventListener("click", () => { onOk?.(); close(); });
-    backdrop.querySelector(".cancel").addEventListener("click", cancel);
+    okBtn.addEventListener("click", () => { onOk?.(); close(); });
+    cancelBtn.addEventListener("click", cancel);
     backdrop.addEventListener("mousedown", (e) => { if (e.target === backdrop) cancel(); });
+
+    // Tab 포커스 트랩: dialog 안의 포커스 가능 요소만 순환시킨다(마지막→첫, 첫←마지막).
+    const focusables = () => [...dialog.querySelectorAll(
+      'button, input, select, textarea, a[href], [tabindex]:not([tabindex="-1"])'
+    )].filter((el) => !el.disabled && el.offsetParent !== null);
     const keyHandler = (e) => {
       e.stopPropagation();
-      if (e.key === "Escape") { cancel(); }
-      else if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") { onOk?.(); close(); }
+      if (e.key === "Escape") { cancel(); return; }
+      if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") { onOk?.(); close(); return; }
+      if (e.key === "Tab") {
+        const els = focusables();
+        if (!els.length) return;
+        const first = els[0], last = els[els.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     };
     window.addEventListener("keydown", keyHandler, true);
-    // 첫 입력에 포커스
-    const first = body.querySelector("input,select");
+    // 첫 포커스 가능 요소로 포커스(입력/셀렉트 우선, 없으면 아무 포커스 가능 요소)
+    const first = body.querySelector("input,select") || focusables()[0];
     if (first) setTimeout(() => { first.focus(); first.select?.(); }, 0);
     return close;
   }

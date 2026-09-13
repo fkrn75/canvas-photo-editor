@@ -174,7 +174,23 @@ export class MenuBar {
         { sep: true },
         { label: "레이어 옵션 표시/숨김", fn: () => a.layersPanel.toggleLayerOptions() },
       ]},
+      { title: "도움말", items: [
+        { label: "사용 설명서", fn: () => this._openManual() },
+        { label: "정보", fn: () => this._about() },
+      ]},
     ];
+  }
+
+  // docs/manual.html을 새 탭으로 연다. 확장(chrome.runtime)과 8124 정적서버 양쪽에서 동작하도록
+  // chrome.runtime.getURL이 있으면 그것을, 없으면 상대경로를 쓴다.
+  _openManual() {
+    const url = globalThis.chrome?.runtime?.getURL?.("docs/manual.html") || "docs/manual.html";
+    window.open(url, "_blank");
+  }
+
+  _about() {
+    const version = globalThis.chrome?.runtime?.getManifest?.()?.version || "0.8.0";
+    this.app.dialogs.alert("정보", `Canvas Photo Editor v${version}`);
   }
 
   _build() {

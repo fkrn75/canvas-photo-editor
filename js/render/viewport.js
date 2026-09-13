@@ -13,6 +13,32 @@ export class Viewport {
     this.panX = 0;
     this.panY = 0;
     this.dpr = window.devicePixelRatio || 1;
+    // fit()으로 맞춘 상태인지 추적(수동 줌/팬 이후엔 false) — 리사이즈 시 강제로 되돌리지 않기 위함.
+    this._isFitted = true;
+    this._installResizeObserver();
+  }
+
+  // 뷰포트 컨테이너 크기 변화 감지. 두 경우에 fit()을 다시 건다.
+  //   1) 직전이 fit() 상태였던 경우(창 크기 변경 시 화면 맞춤 유지)
+  //   2) cssWidth/Height가 0에서 양수로 바뀐 경우(초기 로드 시 레이아웃이 아직 안 잡혀
+  //      0px로 fit()이 계산되면 zoom이 ZOOM.MIN(0.05)에 고착되는 문제의 자가 복구)
+  // 그 외(사용자가 수동으로 줌/팬한 뒤)에는 값을 건드리지 않고 재렌더만 요청한다.
+  _installResizeObserver() {
+    let prevW = 0, prevH = 0; // 0 = "아직 실측 전" 센티널
+    const ro = new ResizeObserver(() => {
+      const w = this.cssWidth, h = this.cssHeight;
+      if (w <= 0 || h <= 0) return; // 레이아웃 확정 전(0px)이면 다음 콜백을 기다린다
+      const cameFromZero = prevW <= 0 || prevH <= 0;
+      prevW = w; prevH = h;
+      const lm = this.app.layers;
+      if ((this._isFitted || cameFromZero) && lm?.width && lm?.height) {
+        this.fit(lm.width, lm.height);
+      } else {
+        this.app.renderer?.requestRender();
+      }
+    });
+    ro.observe(this.el);
+    this._resizeObserver = ro;
   }
 
   get cssWidth() { return this.el.clientWidth; }
@@ -42,6 +68,7 @@ export class Viewport {
     this.zoom = clamp(this.zoom * factor, ZOOM.MIN, ZOOM.MAX);
     this.panX = sx - before.x * this.zoom;
     this.panY = sy - before.y * this.zoom;
+    this._isFitted = false; // 수동 줌 — 이후 리사이즈에서 강제 fit 안 함
     this._changed();
   }
 
@@ -54,6 +81,7 @@ export class Viewport {
   pan(dx, dy) {
     this.panX += dx;
     this.panY += dy;
+    this._isFitted = false; // 수동 팬 — 이후 리사이즈에서 강제 fit 안 함
     this._changed();
   }
 
@@ -64,6 +92,7 @@ export class Viewport {
     this.zoom = clamp(Math.min(z, 1), ZOOM.MIN, ZOOM.MAX);
     this.panX = Math.round((this.cssWidth - docW * this.zoom) / 2);
     this.panY = Math.round((this.cssHeight - docH * this.zoom) / 2);
+    this._isFitted = true; // 리사이즈 시 이 상태를 유지하려 시도(ResizeObserver 참고)
     this._changed();
   }
 
@@ -72,6 +101,7 @@ export class Viewport {
     this.zoom = 1;
     this.panX = Math.round((this.cssWidth - docW) / 2);
     this.panY = Math.round((this.cssHeight - docH) / 2);
+    this._isFitted = false; // fit이 아닌 고정 배율 — 이후 리사이즈에서 강제 fit 안 함
     this._changed();
   }
 
