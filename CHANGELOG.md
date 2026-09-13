@@ -2,6 +2,35 @@
 
 > 크롬 확장(MV3) 이미지 에디터 — 외부 라이브러리·빌드도구 없이 순수 HTML/CSS/JS + Canvas로 자체 구현.
 
+## 2026-09-14 — 개선안 1차 반영 (팀 오케스트라 4관점 감사 → 6워커 병렬 구현)
+
+> 감사(arch/perf/ux/sec) 결과 추천 순서 ①문서·죽은 코드 ②안전망 ③렌더·도구 성능 ④테스트를 한 번에 반영. 8124 런타임 검증(콘솔 에러 0).
+
+### ① 문서·정합성
+- `manifest.json` version 0.1.0 → **0.8.0**(package.json과 통일), description 현행화
+- README 기능 목록·단축키 표·폴더 구조를 실제 코드(v0.8.0) 기준으로 전면 갱신, 개인정보 절 추가(외부 통신 0)
+- implementation-checklist 본문 체크박스를 iteration 1~8 완료 현황과 일치시킴
+- 죽은 코드 `js/tools/text-tool.js` 삭제(tool-manager import 정리), `document-command.js` 리터럴 → `EVT.DOCUMENT_CHANGED`
+
+### ② 안전망 (작업 유실 방어)
+- **beforeunload 경고**: 저장되지 않은 변경(`app.dirty`, 히스토리 변경 시 set·`EVT.FILE_SAVED` 시 clear)이 있으면 탭 닫기/새로고침 경고
+- **전역 에러 핸들러**: `error`/`unhandledrejection` → 상태바 "오류: …" 표시(1초 중복 억제)
+- **처리 중 표시** `js/ui/busy.js`: `runBusySync`(applyFilter, 액션 재생 동기성 유지)·`runBusy`(필터/유동화/패턴 메이커 다이얼로그 적용) — `body.busy` 대기 커서 + 상태바 소요 ms
+- **이미지 크기 상한**: 한 변 16384 초과 거부, 총 픽셀 경고 상한 초과 시 확인 다이얼로그(`_guardLargeSize`)
+- **뷰포트 ResizeObserver**: 창 리사이즈·0px 로드 시 자동 re-fit(수동 줌/팬 후에는 강제 fit 안 함)
+- **다이얼로그 접근성**: title `textContent`(innerHTML 제거), `role=dialog aria-modal aria-labelledby`, Tab 포커스 트랩, Esc 닫기, 이전 포커스 복원
+- 다운로드 파일명 `sanitizeFileName`(경로구분자·제어문자 제거, 120자), [도움말] 메뉴(사용 설명서·정보)
+- 우측 패널 **첫 실행 기본 접힘 세트**(레이어·견본·히스토리만 펼침, 저장된 상태는 보존)
+
+### ③ 성능
+- **합성 결과 캐시**: `compositeTo`가 `_contentDirty`일 때만 `_composeLayers` 실행. 마칭앤츠 타이머·눈금자 커서는 `renderer.requestOverlayRender()`(오버레이만) — 선택 영역 유지 중 재합성 0회(실측 20프레임), `flatten()`은 항상 무캐시
+- **레이어 스타일 캐시**: 레이어별 `{key, canvas}`(pixelVersion + styleGen + 스타일 JSON + 문서 크기) — 다른 레이어 편집 시 유지, 자기 편집 시 갱신(실측)
+- `blend.js` 클립 베이스 getImageData 중복 제거(픽셀 결과 불변)
+- **픽셀 도구 dirty-rect flush**: brush/blur-sharpen-smudge/dodge-burn/clone-stamp가 전체 캔버스 `putImageData` 대신 stroke bbox만(4000×4000 기준 이동당 64MB → bbox 크기), hover/onLeave는 오버레이 렌더로
+
+### ④ 테스트
+- `node --test` 단위테스트 도입(devDependency 0): `tests/` 69개(adjustments/color/floodfill/imagedata/image-mode/filters/blur/blend) 전부 통과, `npm test`
+
 ## v0.8.0 — 2026-06-14 (팀 오케스트라 iteration 8 · 🟠 마이너 후속)
 
 > 팀 오케스트라(워커 4명 M/N/F/D 병렬 → 단일 writer 통합 → 8124 검증). 콘솔 에러 0.
