@@ -2,6 +2,16 @@
 
 > 크롬 확장(MV3) 이미지 에디터 — 외부 라이브러리·빌드도구 없이 순수 HTML/CSS/JS + Canvas로 자체 구현.
 
+## 2026-10-05 — AI 연결(MCP) 서버
+
+> AI(Claude 등 MCP 클라이언트)가 에디터를 직접 조작. 외부 의존성 0, 127.0.0.1 전용, 기본 꺼짐.
+
+- **`mcp/server.mjs`**: 무의존 Node MCP 서버(stdio JSON-RPC) + 127.0.0.1 HTTP 롱폴링 브리지(기본 포트 8131, `CPE_MCP_PORT`). origin 화이트리스트(확장·localhost만), 미연결/포트충돌/시간초과를 도구 오류로 안내
+- **`mcp/tools.mjs`**: 도구 21개 — get_state·get_image·export_image·new_document·open_image·layer_add/update/op·set_layer_style·select·fill(단색/그라디언트)·draw_shape·draw_stroke·add_text(벡터)·add_shape_layer(벡터)·apply_filter(21종)·add_adjustment_layer·transform·set_colors·history·bridge_status. 전부 undo 가능
+- **`js/io/mcp-bridge.js`**: 페이지 쪽 실행기. [도움말 > AI 연결(MCP) 켜기/끄기] 또는 `?mcp=1`/`?mcp=<포트>`로 켬, 상태바 `AI 대기 중`/`AI 연결됨`(클릭 토글), 재시도 지수 백오프(3→30초). 꺼져 있으면 네트워크 호출 0
+- manifest `optional_host_permissions: http://127.0.0.1/*`(켤 때만 요청), `npm run mcp`, `tests/mcp-server.test.js`(프로토콜·origin 차단·가짜 에디터 왕복·도구↔핸들러 1:1) — `npm test` 73/73
+- 검증: 8124에서 실제 MCP 클라이언트 하네스로 21개 도구 왕복·문자열/숫자 레이어 id·포트 변경 경로 확인
+
 ## 2026-09-14 — 개선안 1차 반영 (팀 오케스트라 4관점 감사 → 6워커 병렬 구현)
 
 > 감사(arch/perf/ux/sec) 결과 추천 순서 ①문서·죽은 코드 ②안전망 ③렌더·도구 성능 ④테스트를 한 번에 반영. 8124 런타임 검증(콘솔 에러 0).

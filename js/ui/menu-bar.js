@@ -176,6 +176,7 @@ export class MenuBar {
       ]},
       { title: "도움말", items: [
         { label: "사용 설명서", fn: () => this._openManual() },
+        { label: "AI 연결(MCP) 켜기/끄기", fn: () => a.mcp.toggle() },
         { label: "정보", fn: () => this._about() },
       ]},
     ];

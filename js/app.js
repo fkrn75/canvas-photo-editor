@@ -28,6 +28,7 @@ import { openAdjustmentLayerDialog } from "./ui/adjustment-layer-dialog.js";
 import { QuickMask } from "./selection/quick-mask.js";
 import { FreeTransform } from "./transform/free-transform.js";
 import { PathManager } from "./paths/path-manager.js";
+import { McpBridge } from "./io/mcp-bridge.js";
 import { PathsPanel } from "./ui/paths-panel.js";
 import { ImageModeController } from "./engine/image-mode-controller.js";
 import { ActionsManager } from "./actions/actions-manager.js";
@@ -68,6 +69,7 @@ class App {
     this.selection = new SelectionManager(this);
     this.paths = new PathManager(this);
     this.actions = new ActionsManager(this);   // Actions(매크로) 녹화·재생
+    this.mcp = new McpBridge(this);            // AI 연결(MCP) 브리지 — 켰을 때만 127.0.0.1 통신
     this.quickMask = new QuickMask(this);   // 빠른 마스크 모드 (tools보다 먼저 생성)
     this.notes = new NotesManager(this);   // 노트(주석) 모델 — tools보다 먼저 생성
     this.tools = new ToolManager(this, this.canvas);

@@ -91,6 +91,18 @@
 
 ---
 
+## AI 연결 (MCP)
+
+Claude 같은 AI가 에디터를 직접 조작하게 할 수 있습니다(새 문서·레이어·선택·도형·텍스트·필터·레이어 스타일·변형·내보내기 등 도구 21개, 모두 undo 가능).
+
+1. MCP 서버 등록(한 번): `claude mcp add canvas-photo-editor --scope user -- node <저장소 경로>/mcp/server.mjs`
+2. 에디터에서 **[도움말 > AI 연결(MCP) 켜기/끄기]** → 상태바에 `AI 연결됨` 표시
+3. AI에게 요청: "에디터에 800×600 문서 만들고 노을 그라디언트 배경에 제목 텍스트 넣어줘"
+
+외부 의존성 없는 Node 단일 서버(`mcp/server.mjs`)이며 `127.0.0.1`에만 바인딩합니다. 자세한 내용은 [mcp/README.md](mcp/README.md).
+
+---
+
 ## 기술 메모 (개발자용)
 
 - **빌드 불필요**: `<script type="module">`로 ES 모듈을 직접 로드. MV3 CSP(`script-src 'self'`)에 그대로 부합
@@ -131,6 +143,8 @@ canvas-photo-editor/
 
 ## 개인정보
 
-외부 네트워크 호출·텔레메트리는 전혀 없습니다(코드 전수 grep 결과, `fetch`/`XMLHttpRequest`/`WebSocket` 사용 0건). 이미지·설정·팔레트 프리셋 등 모든 데이터는 브라우저 로컬(localStorage/IndexedDB)에만 저장되며 외부로 전송되지 않습니다.
+외부 네트워크 호출·텔레메트리는 전혀 없습니다. 이미지·설정·팔레트 프리셋 등 모든 데이터는 브라우저 로컬(localStorage/IndexedDB)에만 저장되며 외부로 전송되지 않습니다.
+
+유일한 예외는 사용자가 직접 켜는 **AI 연결(MCP)** 입니다. 켰을 때만 이 PC의 `127.0.0.1`(로컬 MCP 서버)와 통신하며, 꺼져 있으면 네트워크 호출은 0건입니다(`js/io/mcp-bridge.js` 외 `fetch`/`XMLHttpRequest`/`WebSocket` 사용 0건).
 
 라이선스: 자유 사용. 참고 오픈소스(패턴 참조): miniPaint(MIT), StackBlur.

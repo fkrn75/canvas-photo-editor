@@ -426,6 +426,10 @@ html, body {
   color: var(--text-dim); font-size: 12px;
 }
 .status-msg { margin-left: auto; color: var(--text); }
+/* AI 연결(MCP) 상태 — mcp-bridge.js 가 상태바 끝에 붙인다. 클릭하면 켜기/끄기 */
+.status-mcp { cursor: pointer; padding: 0 6px; border-radius: 3px; }
+.status-mcp[data-state="connected"] { color: #7fd17f; }
+.status-mcp[data-state="waiting"] { color: #d8b45a; }
 
 /* ===== 공통 폼 컨트롤 ===== */
 button, select, input[type="text"], input[type="number"] {

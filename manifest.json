@@ -16,6 +16,7 @@
     "128": "icons/icon128.png"
   },
   "permissions": ["tabs", "clipboardRead", "clipboardWrite"],
+  "optional_host_permissions": ["http://127.0.0.1/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: blob:;"
   }
