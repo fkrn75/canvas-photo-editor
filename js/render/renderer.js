@@ -2,8 +2,13 @@
 // requestAnimationFrame 루프를 돌되 dirty 플래그가 설정된 프레임에서만 실제 렌더(유휴 시 0비용).
 // 합성 결과(compositeTo) 위에 눈금자/그리드/가이드를 오버레이로 그린다.
 
+import { GuideController } from "./guides.js";
+
 // 눈금자 두께(CSS px). 켜졌을 때 뷰포트 상/좌에 차지하는 띠의 크기.
 export const RULER_SIZE = 18;
+
+// 픽셀 격자(보기 > 픽셀 격자)를 그리기 시작하는 최소 배율(600%)
+export const PIXEL_GRID_MIN_ZOOM = 6;
 
 export class Renderer {
   constructor(app, canvas) {
@@ -15,6 +20,11 @@ export class Renderer {
     // 눈금자 위 현재 커서 위치 표시용(화면 좌표, 캔버스 기준). 없으면 null.
     this._cursor = null;
     this._bindCursor();
+    // 합성 결과가 새로 만들어졌을 때 알림받을 구독자(히스토그램/내비게이터 등 패널의 디바운스 갱신용)
+    this._compositeListeners = new Set();
+    this._lastComposeCount = -1;
+    // 가이드 상호작용(눈금자 드래그 생성·이동 도구 드래그·밖으로 끌어 삭제)
+    this.guides = new GuideController(app, canvas);
     this._loop = this._loop.bind(this);
     requestAnimationFrame(this._loop);
   }
@@ -51,6 +61,13 @@ export class Renderer {
   // 오버레이만 바뀌었을 때(레이어 합성 결과는 그대로) 다음 프레임 재렌더만 예약한다.
   // 합성/스타일 캐시를 건드리지 않으므로 renderer.requestRender()보다 훨씬 저렴하다.
   requestOverlayRender() { this._dirty = true; }
+
+  // 합성 결과 변경 구독. fn()은 렌더 프레임 안에서 동기 호출되므로 무거운 일은 디바운스할 것.
+  // 반환값: 구독 해제 함수.
+  onComposite(fn) {
+    this._compositeListeners.add(fn);
+    return () => this._compositeListeners.delete(fn);
+  }
 
   // 뷰포트 크기 변화에 맞춰 캔버스 내부 해상도(물리 픽셀)를 갱신
   resize() {
@@ -104,6 +121,13 @@ export class Renderer {
     ctx.imageSmoothingEnabled = vp.zoom < 1;
     lm.compositeTo(ctx);
     ctx.restore();
+    // 실제 재합성이 일어난 프레임이면 구독자에게 알린다(오버레이만 바뀐 프레임은 제외)
+    if (lm.__composeCount !== this._lastComposeCount) {
+      this._lastComposeCount = lm.__composeCount;
+      for (const fn of this._compositeListeners) {
+        try { fn(); } catch (e) { console.error("합성 구독자 오류:", e); }
+      }
+    }
 
     // 5) 문서 테두리
     ctx.strokeStyle = "rgba(0,0,0,0.45)";
@@ -113,6 +137,7 @@ export class Renderer {
     // 6) 그리드(문서 영역 안에서만) → 선택 영역 마칭앤츠 → 활성 도구 오버레이
     //    (모두 화면 좌표계로 그림 → 줌과 무관하게 선 두께 일정)
     this._drawGrid(ctx, vp, tl, sw, sh);
+    this._drawPixelGrid(ctx, vp, tl, sw, sh);
     this.app.selection?.drawOverlay(ctx, vp);
     const tool = this.app.tools?.active;
     if (tool && tool.drawOverlay) tool.drawOverlay(ctx, vp);
@@ -187,6 +212,37 @@ export class Renderer {
     ctx.restore();
   }
 
+  // ── 픽셀 격자: 600% 이상 확대 시 문서 픽셀 경계마다 1px 선(보이는 범위만) ──
+  _drawPixelGrid(ctx, vp, tl, sw, sh) {
+    const st = this.app.state;
+    if (!st?.pixelGrid || vp.zoom < PIXEL_GRID_MIN_ZOOM) return;
+    const lm = this.app.layers;
+    // 화면에 보이는 문서 픽셀 범위로 한정(큰 문서에서도 선 수가 화면 크기에 비례)
+    const a = vp.screenToWorld(0, 0), b = vp.screenToWorld(vp.cssWidth, vp.cssHeight);
+    const x0 = Math.max(0, Math.floor(a.x)), x1 = Math.min(lm.width, Math.ceil(b.x));
+    const y0 = Math.max(0, Math.floor(a.y)), y1 = Math.min(lm.height, Math.ceil(b.y));
+    if (x1 <= x0 || y1 <= y0) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(tl.x, tl.y, sw, sh);
+    ctx.clip();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(128,128,128,0.45)";
+    ctx.beginPath();
+    const top = vp.worldToScreen(0, y0).y, bottom = vp.worldToScreen(0, y1).y;
+    const left = vp.worldToScreen(x0, 0).x, right = vp.worldToScreen(x1, 0).x;
+    for (let x = x0; x <= x1; x++) {
+      const px = Math.round(vp.worldToScreen(x, 0).x) + 0.5;
+      ctx.moveTo(px, top); ctx.lineTo(px, bottom);
+    }
+    for (let y = y0; y <= y1; y++) {
+      const py = Math.round(vp.worldToScreen(0, y).y) + 0.5;
+      ctx.moveTo(left, py); ctx.lineTo(right, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // ── 가이드: state.guides의 수평/수직 선을 뷰포트 전체 폭/높이로 그림 ──
   _drawGuides(ctx, vp) {
     const st = this.app.state;
@@ -197,7 +253,8 @@ export class Renderer {
 
     ctx.save();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(0,170,255,0.9)"; // 시안 계열(포토샵 가이드 느낌)
+    // 시안 계열(포토샵 가이드 느낌). 잠금 상태면 약간 흐리게 해 잡을 수 없음을 암시한다.
+    ctx.strokeStyle = st.guidesLocked ? "rgba(0,170,255,0.55)" : "rgba(0,170,255,0.9)";
     ctx.setLineDash([]);
     ctx.beginPath();
     for (const g of st.guides) {

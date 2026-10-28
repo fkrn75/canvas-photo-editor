@@ -38,11 +38,18 @@ import { ShapePanel } from "./ui/shape-panel.js";
 import { BrushesPanel } from "./ui/brushes-panel.js";
 import { ToolPresetsPanel } from "./ui/tool-presets-panel.js";
 import { FileBrowserPanel } from "./ui/file-browser-panel.js";
+import { HistogramPanel } from "./ui/histogram-panel.js";
+import { InfoPanel } from "./ui/info-panel.js";
+import { NavigatorPanel } from "./ui/navigator-panel.js";
 import { NotesManager } from "./notes/notes-manager.js";
 import { NotesOverlay } from "./ui/notes-overlay.js";
 import { initPanelCollapse } from "./ui/panel-collapse.js";
 import { initPanelDock } from "./ui/panel-dock.js";
 import { runBusySync } from "./ui/busy.js";
+import * as Adjust from "./engine/adjustments.js";
+import { layerViaCopy, layerViaCut } from "./ops/layer-ops.js";
+import { openImageSize, openCanvasSize } from "./ui/doc-dialogs.js";
+import { toggleSnap, toggleGuideLock } from "./ui/menus/panels.js";
 
 // 이미지/캔버스 크기 안전장치 — 매우 큰 캔버스는 브라우저에서 느려지거나 멈출 수 있다.
 // (문서 크기 정책은 app.js 전용이라 constants.js 대신 로컬 상수로 둔다.)
@@ -99,6 +106,9 @@ class App {
     this.brushesPanel = new BrushesPanel(this, document.getElementById("brushes-panel"));
     this.actionsPanel = new ActionsPanel(this, document.getElementById("actions-panel"));
     this.toolPresetsPanel = new ToolPresetsPanel(this, document.getElementById("tool-presets-panel"));
+    this.navigatorPanel = new NavigatorPanel(this, document.getElementById("navigator-panel"));
+    this.infoPanel = new InfoPanel(this, document.getElementById("info-panel"));
+    this.histogramPanel = new HistogramPanel(this, document.getElementById("histogram-panel"));
     this.notesOverlay = new NotesOverlay(this);   // 노트 마커+팝업 DOM 오버레이
     this.menuBar = new MenuBar(this, document.getElementById("menubar"));
 
@@ -204,7 +214,8 @@ class App {
     this.dirty = false; // 새 문서는 저장할 변경사항이 없는 상태로 시작
     this.layers.notifyStructure();
     this.viewport.fit(w, h);
-    this._updateSize();
+    // 문서 교체를 알린다(크기 표시 갱신·패널 새로고침·제자리 붙여넣기 버퍼 비우기)
+    this.bus.emit(EVT.DOCUMENT_CHANGED, { width: w, height: h });
     this.renderer.requestRender();
   }
 
@@ -560,6 +571,25 @@ class App {
 
       if (e.ctrlKey || e.metaKey) {
         const k = e.key.toLowerCase();
+        // 아래 새 단축키들은 입력 필드·텍스트 편집 중에는 동작하지 않는다(브라우저 기본 동작 유지)
+        if (!typing) {
+          // Shift 조합에서 e.key 가 바뀌는 키([ ] ;)는 e.code 로 판정한다
+          if (!e.altKey && (e.code === "BracketRight" || e.code === "BracketLeft")) {
+            e.preventDefault(); const fwd = e.code === "BracketRight";
+            this.layers.arrangeLayer(e.shiftKey ? (fwd ? "front" : "back") : (fwd ? "forward" : "backward")); return;
+          }
+          if (e.code === "Semicolon" && e.shiftKey) { e.preventDefault(); toggleSnap(this); return; }
+          if (e.code === "Semicolon" && e.altKey) { e.preventDefault(); toggleGuideLock(this); return; }
+          if (k === "j") { e.preventDefault(); e.shiftKey ? layerViaCut(this) : layerViaCopy(this); return; }
+          if (k === "i" && e.altKey) { e.preventDefault(); openImageSize(this); return; }
+          if (k === "c" && e.altKey) { e.preventDefault(); openCanvasSize(this); return; }
+          if (k === "c" && e.shiftKey) { e.preventDefault(); this.clipboard.copyMerged(); return; }
+          if (k === "x") { e.preventDefault(); this.clipboard.cut(); return; }
+          if (k === "v" && e.shiftKey) { e.preventDefault(); this.clipboard.pasteInPlace(); return; }
+          if (k === "u" && e.shiftKey) { e.preventDefault(); this.applyFilter("채도 감소", Adjust.desaturate); return; }
+          if (k === "l" && e.shiftKey && e.altKey) { e.preventDefault(); this.applyFilter("자동 대비", (i) => Adjust.autoContrast(i)); return; }
+          if (k === "b" && e.shiftKey) { e.preventDefault(); this.applyFilter("자동 색상", (i) => Adjust.autoColor(i)); return; }
+        }
         if (k === "z") { e.preventDefault(); e.shiftKey ? this.history.redo() : this.history.undo(); }
         else if (k === "y") { e.preventDefault(); this.history.redo(); }
         else if (k === "s") { e.preventDefault(); this.fileIO.save("png"); }

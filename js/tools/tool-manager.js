@@ -27,17 +27,36 @@ import { ArtHistoryBrushTool } from "./art-history-brush-tool.js";
 import { ColorSamplerTool } from "./color-sampler-tool.js";
 import { MeasureTool } from "./measure-tool.js";
 import { NotesTool } from "./notes-tool.js";
+import { CropTool } from "./crop-tool.js";
+import { PolyLassoTool, MagneticLassoTool } from "./lasso-ext-tools.js";
+import { QuickSelectTool } from "./quick-select-tool.js";
+import { MagicEraserTool, BackgroundEraserTool } from "./eraser-ext-tools.js";
+import { SpotHealTool } from "./spot-heal-tool.js";
+import { RedEyeTool } from "./red-eye-tool.js";
+import { ColorReplaceTool } from "./color-replace-tool.js";
 
-// 단일 키 도구 단축키 (g는 버킷↔그라디언트 슬롯 순환이라 아래 keydown에서 별도 처리)
+// 단일 키 도구 단축키 (여러 도구가 한 키를 공유하는 슬롯은 아래 SLOTS)
 const KEYMAP = {
-  v: TOOL.MOVE, m: TOOL.MARQUEE, l: TOOL.LASSO, w: TOOL.WAND,
-  b: TOOL.BRUSH, n: TOOL.PENCIL, e: TOOL.ERASER,
+  v: TOOL.MOVE, m: TOOL.MARQUEE,
+  n: TOOL.PENCIL,
   u: TOOL.SHAPE, t: TOOL.TEXT, h: TOOL.HAND, z: TOOL.ZOOM,
   s: TOOL.CLONE, o: TOOL.DODGEBURN, r: TOOL.RETOUCH,
   p: TOOL.PEN, a: TOOL.SHAPELAYER,
   j: TOOL.HISTORYBRUSH, y: TOOL.PATTERNSTAMP,
-  k: TOOL.HEALING, c: TOOL.PATCH,
   f: TOOL.ARTHISTORY,
+};
+
+// 슬롯 순환 단축키: 같은 키를 다시 누르면 다음 도구로. 슬롯 밖에서 누르면 첫 도구.
+// (기존 G·I 순환과 같은 방식. 첫 도구는 기존 단일 키 동작을 유지 — 단 C는 포토샵 관례대로 자르기가 먼저)
+const SLOTS = {
+  l: [TOOL.LASSO, TOOL.POLYLASSO, TOOL.MAGLASSO],
+  w: [TOOL.WAND, TOOL.QUICKSELECT],
+  b: [TOOL.BRUSH, TOOL.COLORREPLACE],
+  e: [TOOL.ERASER, TOOL.BGERASER, TOOL.MAGICERASER],
+  k: [TOOL.HEALING, TOOL.SPOTHEAL, TOOL.REDEYE],
+  c: [TOOL.CROP, TOOL.PATCH],
+  g: [TOOL.BUCKET, TOOL.GRADIENT],
+  i: [TOOL.EYEDROPPER, TOOL.COLORSAMPLER, TOOL.MEASURE],
 };
 
 function isTyping(e) {
@@ -88,6 +107,16 @@ export class ToolManager {
     this.tools[TOOL.COLORSAMPLER] = new ColorSamplerTool(a, TOOL.COLORSAMPLER);
     this.tools[TOOL.MEASURE] = new MeasureTool(a, TOOL.MEASURE);
     this.tools[TOOL.NOTES] = new NotesTool(a, TOOL.NOTES);
+    // 확장 도구
+    this.tools[TOOL.CROP] = new CropTool(a, TOOL.CROP);
+    this.tools[TOOL.POLYLASSO] = new PolyLassoTool(a, TOOL.POLYLASSO);
+    this.tools[TOOL.MAGLASSO] = new MagneticLassoTool(a, TOOL.MAGLASSO);
+    this.tools[TOOL.QUICKSELECT] = new QuickSelectTool(a, TOOL.QUICKSELECT);
+    this.tools[TOOL.MAGICERASER] = new MagicEraserTool(a, TOOL.MAGICERASER);
+    this.tools[TOOL.BGERASER] = new BackgroundEraserTool(a, TOOL.BGERASER);
+    this.tools[TOOL.SPOTHEAL] = new SpotHealTool(a, TOOL.SPOTHEAL);
+    this.tools[TOOL.REDEYE] = new RedEyeTool(a, TOOL.REDEYE);
+    this.tools[TOOL.COLORREPLACE] = new ColorReplaceTool(a, TOOL.COLORREPLACE);
   }
 
   setTool(id) {
@@ -185,17 +214,21 @@ export class ToolManager {
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return; // Ctrl 조합은 app이 처리
+      // 활성 도구 전용 키(자르기 Enter/Esc, 다각형·자석 올가미 Enter/Esc/Backspace 등).
+      // 도구가 처리했으면 app.js 전역 처리(Delete/Backspace=선택 영역 지우기 등)까지 막는다.
+      // (ToolManager가 app._bindGlobalKeys보다 먼저 생성돼 window 리스너도 먼저 실행된다)
+      if (!this.app.freeTransform?.active && this.active?.onKeyDown?.(e)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
       const k = e.key.toLowerCase();
       if (k === "q") { // 빠른 마스크 모드 토글
         this.app.quickMask?.toggle();
         e.preventDefault(); return;
       }
-      if (k === "g") { // G 슬롯: 페인트 버킷 ↔ 그라디언트 순환
-        this.setTool(this.activeId === TOOL.BUCKET ? TOOL.GRADIENT : TOOL.BUCKET);
-        e.preventDefault(); return;
-      }
-      if (k === "i") { // I 슬롯: 스포이드 → 색상 샘플러 → 측정 순환
-        const order = [TOOL.EYEDROPPER, TOOL.COLORSAMPLER, TOOL.MEASURE];
+      if (SLOTS[k]) { // 슬롯 순환(G: 버킷↔그라디언트, I: 스포이드→샘플러→측정, L/W/B/E/K/C 확장 도구)
+        const order = SLOTS[k];
         const cur = order.indexOf(this.activeId); // 슬롯 밖이면 -1 → 첫 도구로
         this.setTool(order[(cur + 1) % order.length]);
         e.preventDefault(); return;

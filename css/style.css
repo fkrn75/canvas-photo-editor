@@ -84,6 +84,11 @@ html, body {
 .menu-row.disabled { color: var(--text-dim); pointer-events: none; }
 .menu-row .shortcut { color: var(--text-dim); font-size: 12px; }
 .menu-row:hover .shortcut { color: #d8eefa; }
+/* 하위 메뉴: 행에 마우스를 올리면 오른쪽으로 펼친다 */
+.menu-row.has-sub { position: relative; }
+.menu-row.has-sub > .menu-sub { top: -5px; left: 100%; }
+.menu-row.has-sub:hover > .menu-sub { display: block; color: var(--text); }
+.menu-sub .menu-row:hover { color: #fff; }
 .menu-sep { height: 1px; background: var(--border-light); margin: 4px 8px; }
 
 /* 메뉴바 빠른 버튼(실행취소/다시실행) — 브랜드 옆에 항상 표시 */
@@ -516,3 +521,39 @@ input[type="checkbox"] { accent-color: var(--accent); }
 /* 작업 처리 중(busy.js가 document.body에 건다). 커서는 busy.js가 인라인으로도
    직접 지정하지만, 그 외 전체 클릭 표면에도 대기 커서를 일관되게 보여주기 위한 보강. */
 body.busy { cursor: wait; }
+
+/* ===== 정보성 패널: 내비게이터 / 정보 / 히스토그램 (panels 작업자) ===== */
+/* 우측 패널 짜부 방지: flex:none/max-height 대신 flex:1 1 auto + min-height(.rightpanel이 스크롤) */
+#navigator-panel, #info-panel, #histogram-panel { flex: 1 1 auto; border-bottom: 1px solid var(--border); }
+#navigator-panel { min-height: 200px; }
+#info-panel { min-height: 150px; }
+#histogram-panel { min-height: 210px; }
+/* 창 메뉴로 숨긴 패널 */
+.panel.panel-hidden { display: none !important; }
+
+.info-panel-body { padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.info-panel-body .k { color: var(--text-dim); }
+.info-panel-body .v { font-variant-numeric: tabular-nums; text-align: right; }
+
+/* 내비게이터 */
+.nav-wrap { display: flex; justify-content: center; align-items: center; min-height: 60px; background: var(--bg-panel-2); padding: 4px; }
+.nav-canvas { display: block; cursor: pointer; box-shadow: 0 0 0 1px var(--border); touch-action: none; }
+.nav-zoom { display: flex; align-items: center; gap: 4px; }
+.nav-zoom .nav-slider { flex: 1 1 auto; min-width: 40px; }
+.nav-zoom button { width: 22px; height: 20px; padding: 0; background: var(--bg-input); color: var(--text); border: 1px solid var(--border-light); border-radius: 3px; cursor: pointer; }
+.nav-zoom button:hover { background: var(--btn-hover); }
+.nav-zoom .nav-pct { width: 52px; padding: 1px 4px; background: var(--bg-input); color: var(--text); border: 1px solid var(--border-light); border-radius: 3px; font-size: 11px; text-align: right; }
+
+/* 정보 */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+.info-block { display: grid; grid-template-columns: 14px 1fr; gap: 1px 6px; padding-bottom: 4px; border-bottom: 1px solid var(--border-light); }
+.info-line { display: flex; gap: 6px; }
+.info-samplers { white-space: pre; font-variant-numeric: tabular-nums; color: var(--text); border-top: 1px solid var(--border-light); padding-top: 4px; }
+
+/* 히스토그램 */
+.hist-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.hist-controls label { display: flex; align-items: center; gap: 4px; color: var(--text-dim); }
+.hist-controls select { background: var(--bg-input); color: var(--text); border: 1px solid var(--border-light); border-radius: 3px; font-size: 11px; padding: 1px 2px; }
+.hist-controls .hist-refresh { margin-left: auto; width: 22px; height: 20px; padding: 0; background: var(--bg-input); color: var(--text); border: 1px solid var(--border-light); border-radius: 3px; cursor: pointer; }
+.hist-canvas { display: block; width: 100%; height: 100px; image-rendering: pixelated; border: 1px solid var(--border); }
+.hist-stats { display: grid; grid-template-columns: auto 1fr; gap: 1px 10px; }

@@ -54,6 +54,13 @@ export class Viewport {
     this.app.state.clearGuides();
     this.app.renderer?.requestRender();
   }
+  // 가이드 잠금 토글(잠기면 이동 도구로 잡을 수 없다 — guides.js 참고)
+  toggleGuidesLocked() {
+    const st = this.app.state;
+    st.set("guidesLocked", !st.guidesLocked);
+    this.app.renderer?.requestOverlayRender();
+    return st.guidesLocked;
+  }
 
   screenToWorld(sx, sy) {
     return { x: (sx - this.panX) / this.zoom, y: (sy - this.panY) / this.zoom };
@@ -83,6 +90,20 @@ export class Viewport {
     this.panY += dy;
     this._isFitted = false; // 수동 팬 — 이후 리사이즈에서 강제 fit 안 함
     this._changed();
+  }
+
+  // 문서 좌표 (wx,wy)가 뷰포트 중앙에 오도록 팬(배율 유지). 내비게이터 드래그가 사용한다.
+  centerOn(wx, wy) {
+    this.panX = this.cssWidth / 2 - wx * this.zoom;
+    this.panY = this.cssHeight / 2 - wy * this.zoom;
+    this._isFitted = false; // 수동 팬
+    this._changed();
+  }
+
+  // 현재 화면에 보이는 문서 좌표 사각형 {x,y,w,h}(문서 밖까지 포함, 클램프 안 함)
+  visibleWorldRect() {
+    const a = this.screenToWorld(0, 0);
+    return { x: a.x, y: a.y, w: this.cssWidth / this.zoom, h: this.cssHeight / this.zoom };
   }
 
   // 문서 전체가 보이도록 맞춤(여백 포함). 작은 이미지는 100%까지만 확대.

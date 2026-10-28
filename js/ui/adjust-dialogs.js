@@ -7,6 +7,9 @@
 
 import * as Adjust from "../engine/adjustments.js";
 import { rgbToHex, hexToRgb } from "../engine/color.js";
+import {
+  ADJUSTMENT_TYPES, adjustmentSpec, defaultParams, applyAdjustment, cloneParams,
+} from "../layers/adjustment-layer.js";
 
 // 공통: 라벨+슬라이더+값뱃지 한 줄을 만들고 body에 추가한다.
 // onInput(value)는 input 이벤트마다 호출. 반환된 객체로 값 동기화 가능.
@@ -270,4 +273,168 @@ export function openChannelMixer(app) {
 
   app.dialogs.custom("채널 혼합", body, () => h.commit(compute, "채널 혼합"), () => h.cancel(), "적용");
   syncSliders();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 명세 기반 공용 컨트롤 빌더 — 조정 레이어 편집 다이얼로그와 파괴적 보정 다이얼로그가 공유한다.
+// spec = { sliders, bank, fields } (adjustment-layer.js ADJUSTMENT_TYPES 메타와 같은 형식)
+//   sliders : [{ key, label, min, max, step, suffix }]            → cur[key]
+//   bank    : { label, options:[[값,표시]], initial, sliders:[{ idx, ... }] } → cur[선택값][idx]
+//   fields  : [{ key, label, type:"checkbox"|"select"|"color", options }] → cur[key]
+// cur 를 직접 수정하고 매 변경마다 onChange() 를 부른다. 반환 { sync() } 는 cur → 컨트롤 재반영.
+// ════════════════════════════════════════════════════════════════════════════
+export function buildParamControls(body, spec, cur, onChange) {
+  const { sliders = [], bank = null, fields = [] } = spec || {};
+  const syncers = [];
+  const syncAll = () => syncers.forEach((f) => f());
+
+  // 슬라이더 한 줄: get()/set(v) 로 값 위치를 추상화(평면 키 / 범위 묶음 공용)
+  const sliderRow = (s, get, set) => {
+    const row = document.createElement("div"); row.className = "row";
+    const lb = document.createElement("label"); lb.textContent = s.label; lb.style.width = "80px";
+    const inp = document.createElement("input");
+    inp.type = "range"; inp.min = s.min; inp.max = s.max; inp.step = s.step; inp.style.flex = "1";
+    const badge = document.createElement("span"); badge.className = "val-badge";
+    const dec = (String(s.step).split(".")[1] || "").length; // 표시 소수 자릿수 = step 자릿수
+    const fmt = (v) => (dec ? Number(v).toFixed(dec) : v) + (s.suffix || "");
+    inp.addEventListener("input", () => {
+      const v = parseFloat(inp.value);
+      badge.textContent = fmt(v);
+      set(v); onChange();
+    });
+    row.append(lb, inp, badge);
+    body.appendChild(row);
+    syncers.push(() => { const v = get() ?? s.min; inp.value = v; badge.textContent = fmt(v); });
+  };
+
+  // 1) 범위 선택 + 범위별 슬라이더
+  if (bank) {
+    let sel = bank.initial ?? bank.options[0][0];
+    const row = document.createElement("div"); row.className = "row";
+    const lb = document.createElement("label"); lb.textContent = bank.label; lb.style.width = "80px";
+    const select = document.createElement("select");
+    for (const [v, t] of bank.options) {
+      const o = document.createElement("option"); o.value = v; o.textContent = t; select.appendChild(o);
+    }
+    select.value = sel;
+    select.addEventListener("change", () => { sel = select.value; syncAll(); });
+    row.append(lb, select);
+    body.appendChild(row);
+    for (const bs of bank.sliders) {
+      sliderRow(bs,
+        () => (Array.isArray(cur[sel]) ? cur[sel][bs.idx] : undefined) ?? 0,
+        (v) => { if (!Array.isArray(cur[sel])) cur[sel] = [0, 0, 0, 0]; cur[sel][bs.idx] = v; });
+    }
+    if (sliders.length) caption(body, "");
+  }
+
+  // 2) 평면 슬라이더
+  for (const s of sliders) sliderRow(s, () => cur[s.key], (v) => { cur[s.key] = v; });
+
+  // 3) 기타 컨트롤(체크박스/셀렉트/색상). 같은 key 를 여러 컨트롤이 공유할 수 있어(포토 필터 프리셋+색상)
+  //    변경 후 전체 sync 로 서로를 맞춘다.
+  for (const f of fields) {
+    const row = document.createElement("div"); row.className = "row";
+    const lb = document.createElement("label"); lb.textContent = f.label; lb.style.width = "80px";
+    let el;
+    if (f.type === "checkbox") {
+      el = document.createElement("input"); el.type = "checkbox";
+      el.addEventListener("change", () => { cur[f.key] = el.checked; onChange(); syncAll(); });
+      syncers.push(() => { el.checked = !!cur[f.key]; });
+    } else if (f.type === "select") {
+      el = document.createElement("select");
+      for (const [v, t] of f.options || []) {
+        const o = document.createElement("option"); o.value = v; o.textContent = t; el.appendChild(o);
+      }
+      el.addEventListener("change", () => {
+        if (el.value === "") { syncAll(); return; } // "사용자 정의" 같은 빈 값 항목은 현재 값 유지
+        cur[f.key] = el.value; onChange(); syncAll();
+      });
+      syncers.push(() => {
+        const v = String(cur[f.key] ?? "").toLowerCase();
+        const hit = (f.options || []).some(([ov]) => String(ov).toLowerCase() === v);
+        el.value = hit ? (f.options.find(([ov]) => String(ov).toLowerCase() === v)[0]) : "";
+      });
+    } else if (f.type === "color") {
+      el = document.createElement("input"); el.type = "color";
+      el.addEventListener("input", () => { cur[f.key] = el.value; onChange(); syncAll(); });
+      syncers.push(() => { el.value = cur[f.key] || "#000000"; });
+    } else {
+      continue;
+    }
+    row.append(lb, el);
+    body.appendChild(row);
+  }
+
+  syncAll();
+  return { sync: syncAll };
+}
+
+// 명세 기반 파괴적 보정 다이얼로그(활성 레이어 픽셀 수정, 실시간 미리보기, 확인=undo 1스텝).
+//   spec    : buildParamControls 명세
+//   init    : 초기 파라미터(복사해서 사용)
+//   compute : (img, params) => void  — ImageData in-place 보정
+// 미리보기는 requestAnimationFrame 으로 합쳐 큰 이미지에서 슬라이더 드래그가 밀리지 않게 한다.
+export function openParamAdjustment(app, title, spec, init, compute) {
+  const h = app._startPreview();
+  if (!h) { app.status("레이어가 없습니다."); return; }
+  const cur = cloneParams(init);
+  const run = (img) => compute(img, cur);
+  let pending = false, closed = false;
+  const schedule = () => {
+    if (pending) return;
+    pending = true;
+    const raf = typeof requestAnimationFrame === "function" ? requestAnimationFrame : (f) => setTimeout(f, 16);
+    raf(() => { pending = false; if (!closed) h.apply(run); });
+  };
+
+  const body = document.createElement("div");
+  body.style.width = "320px";
+  buildParamControls(body, spec, cur, schedule);
+
+  app.dialogs.custom(title, body,
+    () => { closed = true; h.commit(run, title); },
+    () => { closed = true; h.cancel(); }, "적용");
+  h.apply(run); // 초기 미리보기
+}
+
+// 조정 레이어 타입 메타(ADJUSTMENT_TYPES)를 그대로 써서 같은 보정을 파괴적으로 적용하는 다이얼로그.
+// (노출·활기·포토 필터·선택 색상·흑백(혼합) — 레이어/메뉴가 같은 수학·같은 UI를 공유)
+export function openTypeAdjustment(app, type) {
+  const meta = ADJUSTMENT_TYPES[type];
+  if (!meta) return;
+  openParamAdjustment(app, meta.label, adjustmentSpec(type), defaultParams(type),
+    (img, p) => applyAdjustment(img, type, p));
+}
+
+// ── 어두운 영역/밝은 영역 (Shadows/Highlights) ──
+export const SHADOWS_HIGHLIGHTS_SPEC = {
+  sliders: [
+    { key: "shadows", label: "어두운 영역", min: 0, max: 100, step: 1, suffix: "%" },
+    { key: "highlights", label: "밝은 영역", min: 0, max: 100, step: 1, suffix: "%" },
+    { key: "toneWidth", label: "톤 폭", min: 1, max: 100, step: 1, suffix: "%" },
+    { key: "radius", label: "반경", min: 0, max: 250, step: 1, suffix: "px" },
+  ],
+};
+export function openShadowsHighlights(app) {
+  openParamAdjustment(app, "어두운 영역/밝은 영역", SHADOWS_HIGHLIGHTS_SPEC,
+    { shadows: 35, highlights: 0, toneWidth: 50, radius: 30 },
+    (img, p) => Adjust.shadowsHighlights(img, p.shadows, p.highlights, p.toneWidth, p.radius));
+}
+
+// ── 색상 대체 (Replace Color) — 대상 색 기본값 = 현재 전경색 ──
+export const REPLACE_COLOR_SPEC = {
+  sliders: [
+    { key: "fuzziness", label: "허용치", min: 0, max: 200, step: 1 },
+    { key: "hue", label: "색조", min: -180, max: 180, step: 1 },
+    { key: "sat", label: "채도", min: -100, max: 100, step: 1 },
+    { key: "light", label: "밝기", min: -100, max: 100, step: 1 },
+  ],
+  fields: [{ key: "target", label: "대상 색", type: "color" }],
+};
+export function openReplaceColor(app) {
+  const fg = app.state?.foreground || "#000000";
+  openParamAdjustment(app, "색상 대체", REPLACE_COLOR_SPEC,
+    { target: fg, fuzziness: 40, hue: 0, sat: 0, light: 0 },
+    (img, p) => Adjust.replaceColor(img, p.target, p.fuzziness, p.hue, p.sat, p.light));
 }

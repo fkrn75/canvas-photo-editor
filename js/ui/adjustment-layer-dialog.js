@@ -7,14 +7,15 @@
 // 타입별 UI:
 //   - editor==="levels" : 채널별(rgb/r/g/b/a) 히스토그램 + 입력/출력 레벨 슬라이더 (전용 에디터)
 //   - editor==="curves" : 채널별 Catmull-Rom 곡선 편집 (전용 에디터)
-//   - 그 외             : ADJUSTMENT_TYPES.sliders 로 슬라이더를 자동 생성(타입 추가에 무수정 대응)
+//   - 그 외             : ADJUSTMENT_TYPES.sliders/bank/fields 로 컨트롤을 자동 생성(타입 추가에 무수정 대응)
 //
 // 히스토그램 소스는 "이 조정 레이어 아래까지 합성된 결과"를 사용한다(포토샵과 동일한 맥락).
 
 import {
-  adjustmentSliders, adjustmentLabel, adjustmentEditor,
+  adjustmentSpec, adjustmentLabel, adjustmentEditor, defaultParams,
   normalizeLevelsParams, normalizeCurvesParams, LEVELS_CHANNELS, cloneParams,
 } from "../layers/adjustment-layer.js";
+import { buildParamControls } from "./adjust-dialogs.js";
 import * as Adjust from "../engine/adjustments.js";
 import { AdjustmentParamsCommand } from "../history/commands/adjustment-command.js";
 
@@ -90,39 +91,23 @@ function channelSelect(onChange) {
   return { row, sel };
 }
 
-// ── 슬라이더형(밝기/대비·색조/채도·포스터화·한계값 등) ──────────────────────
+// ── 명세형(슬라이더/범위 묶음/체크박스·셀렉트·색상) ───────────────────────────
+// ADJUSTMENT_TYPES 의 sliders·bank·fields 메타로 컨트롤을 자동 생성한다(adjust-dialogs.js buildParamControls 공유).
 function openSliderEditor(app, id, layer) {
-  const sliders = adjustmentSliders(layer.adjustmentType);
-  if (!sliders.length) {
-    app.status(`${adjustmentLabel(layer.adjustmentType)} 보정은 편집할 설정이 없습니다.`);
+  const type = layer.adjustmentType;
+  const spec = adjustmentSpec(type);
+  if (!spec.sliders.length && !spec.bank && !spec.fields.length) {
+    app.status(`${adjustmentLabel(type)} 보정은 편집할 설정이 없습니다.`);
     return;
   }
   const pv = makePreview(app, id, layer);
-  const cur = { ...pv.before };
+  // 누락 키(구버전/MCP 부분 파라미터)는 타입 기본값으로 채운다. 중첩 배열까지 깊은 복사.
+  const cur = { ...defaultParams(type), ...cloneParams(pv.before) };
 
   const body = document.createElement("div");
-  body.style.width = "300px";
-  for (const s of sliders) {
-    const row = document.createElement("div");
-    row.className = "row";
-    const lb = document.createElement("label");
-    lb.textContent = s.label; lb.style.width = "70px";
-    const inp = document.createElement("input");
-    inp.type = "range"; inp.min = s.min; inp.max = s.max; inp.step = s.step;
-    inp.value = cur[s.key] ?? s.min; inp.style.flex = "1";
-    const badge = document.createElement("span");
-    badge.className = "val-badge";
-    const fmt = (v) => v + (s.suffix || "");
-    badge.textContent = fmt(inp.value);
-    inp.addEventListener("input", () => {
-      const v = parseFloat(inp.value);
-      cur[s.key] = v; badge.textContent = fmt(v);
-      pv.preview(cur);
-    });
-    row.append(lb, inp, badge);
-    body.appendChild(row);
-  }
-  app.dialogs.custom(adjustmentLabel(layer.adjustmentType), body,
+  body.style.width = "320px";
+  buildParamControls(body, spec, cur, () => pv.preview(cur));
+  app.dialogs.custom(adjustmentLabel(type), body,
     () => pv.commit(cur), () => pv.cancel(), "적용");
 }
 

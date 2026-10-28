@@ -17,6 +17,7 @@ import {
   MergeVisibleCommand,
   AddMaskCommand, RemoveMaskCommand, ToggleMaskEnabledCommand,
 } from "../history/commands/layer-structure-command.js";
+import { CompoundCommand } from "../history/commands/layer-image-commands.js";
 
 export class LayerManager {
   constructor(app) {
@@ -98,10 +99,11 @@ export class LayerManager {
   }
 
   // ── 고수준 액션 (UI에서 호출) ──
-  addLayer({ name, fill = null, image = null } = {}) {
+  // x/y: image를 놓을 문서 좌표(기본 0,0 — 제자리에 붙여넣기는 원래 위치를 넘긴다)
+  addLayer({ name, fill = null, image = null, x = 0, y = 0 } = {}) {
     const layer = new Layer(this.width, this.height, name);
     if (fill) { layer.ctx.fillStyle = fill; layer.ctx.fillRect(0, 0, this.width, this.height); }
-    if (image) layer.ctx.drawImage(image, 0, 0);
+    if (image) layer.ctx.drawImage(image, x, y);
     const index = this.indexOf(this.activeId) + 1; // 활성 레이어 위에 삽입
     this.app.history.execute(new AddLayerCommand(this, layer, index));
     return layer;
@@ -132,6 +134,41 @@ export class LayerManager {
     const target = cur + dir;
     if (cur < 0 || target < 0 || target >= this.layers.length) return;
     this.app.history.execute(new MoveLayerCommand(this, id, cur, target));
+  }
+
+  // 배치(Arrange): "front"=맨 앞으로(Shift+Ctrl+]) / "forward"=앞으로(Ctrl+]) /
+  //               "backward"=뒤로(Ctrl+[) / "back"=맨 뒤로(Shift+Ctrl+[)
+  // 레이어 배열은 [0]=맨 아래이므로 "앞"=인덱스 증가.
+  arrangeLayer(mode, id = this.activeId) {
+    const cur = this.indexOf(id);
+    if (cur < 0) return;
+    const last = this.layers.length - 1;
+    const target = { front: last, forward: Math.min(last, cur + 1), backward: Math.max(0, cur - 1), back: 0 }[mode];
+    if (target === undefined) return;
+    if (target === cur) { this.app.status(mode === "front" || mode === "forward" ? "이미 맨 앞에 있습니다." : "이미 맨 뒤에 있습니다."); return; }
+    const cmd = new MoveLayerCommand(this, id, cur, target);
+    cmd.label = { front: "맨 앞으로 가져오기", forward: "앞으로 가져오기", backward: "뒤로 보내기", back: "맨 뒤로 보내기" }[mode];
+    this.app.history.execute(cmd);
+  }
+
+  // 다른 레이어 숨기기(활성 레이어만 보이게) — 히스토리 1단계
+  hideOtherLayers(id = this.activeId) {
+    const cmds = this.layers
+      .filter((l) => l.id !== id && l.visible)
+      .map((l) => new LayerPropCommand(this, l.id, "visible", true, false));
+    const self = this.byId(id);
+    if (self && !self.visible) cmds.push(new LayerPropCommand(this, id, "visible", false, true));
+    if (!cmds.length) { this.app.status("숨길 다른 레이어가 없습니다."); return; }
+    this.app.history.execute(new CompoundCommand("다른 레이어 숨기기", cmds));
+  }
+
+  // 모든 레이어 보이기 — 히스토리 1단계
+  showAllLayers() {
+    const cmds = this.layers
+      .filter((l) => !l.visible)
+      .map((l) => new LayerPropCommand(this, l.id, "visible", false, true));
+    if (!cmds.length) { this.app.status("모든 레이어가 이미 보입니다."); return; }
+    this.app.history.execute(new CompoundCommand("모든 레이어 보이기", cmds));
   }
 
   mergeDown(id = this.activeId) {

@@ -52,16 +52,22 @@ export function invert(img) {
 }
 
 // 자동 레벨: 각 채널의 최소/최대를 0~255로 스트레치
+// 알파 0(완전 투명) 픽셀의 RGB 는 의미가 없으므로 최소/최대 산정에서 제외한다(투명 레이어에서 효과가 죽는 문제 방지).
+// 불투명 픽셀이 하나도 없으면 변경 없음.
 export function autoTone(img) {
   const d = img.data;
   const min = [255, 255, 255], max = [0, 0, 0];
+  let counted = 0;
   for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;
+    counted++;
     for (let k = 0; k < 3; k++) {
       const v = d[i + k];
       if (v < min[k]) min[k] = v;
       if (v > max[k]) max[k] = v;
     }
   }
+  if (!counted) return img;
   const lut = [new Uint8ClampedArray(256), new Uint8ClampedArray(256), new Uint8ClampedArray(256)];
   for (let k = 0; k < 3; k++) {
     const range = max[k] - min[k] || 1;
@@ -270,7 +276,8 @@ export function buildGradientLUT(stops) {
 export function gradientMap(img, gradLUT) {
   const d = img.data;
   for (let i = 0; i < d.length; i += 4) {
-    const y = luminance(d[i], d[i + 1], d[i + 2]) | 0;
+    // 반올림: 회색(v,v,v)의 휘도가 부동소수 오차로 v-ε 가 되어 |0 이 v-1 로 내려가는 것을 막는다
+    const y = (luminance(d[i], d[i + 1], d[i + 2]) + 0.5) | 0;
     d[i] = gradLUT.r[y]; d[i + 1] = gradLUT.g[y]; d[i + 2] = gradLUT.b[y];
   }
   return img;
@@ -309,6 +316,328 @@ export function equalize(img) {
     d[i] = r > 255 ? 255 : r;
     d[i + 1] = g > 255 ? 255 : g;
     d[i + 2] = b > 255 ? 255 : b;
+  }
+  return img;
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 확장 보정(PhotoCraft 이식분): 노출·활기·포토 필터·선택 색상·흑백(혼합)·
+// 어두운 영역/밝은 영역·채도 감소·색상 대체·자동 대비·자동 색상.
+// 파괴적 메뉴(보정 >)와 비파괴 조정 레이어가 같은 함수를 공유한다. 모두 ImageData 제자리 수정.
+// ════════════════════════════════════════════════════════════════════════════
+
+// sRGB(0~1) ↔ 선형광(0~1). 노출은 PS처럼 선형광 공간에서 계산한다.
+function srgbToLinear(v) { return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+function linearToSrgb(v) { return v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055; }
+
+// 노출(Exposure). ev: 스톱(-20~20, 2^ev 배), offset: 선형광 가감(-0.5~0.5), gamma: 감마 보정(0.01~9.99).
+// 순서(PS 근사): 선형광 × 2^ev → + offset → ^(1/gamma). 채널 독립이라 256-LUT 하나로 처리한다.
+export function exposure(img, ev = 0, offset = 0, gamma = 1) {
+  if (ev === 0 && offset === 0 && gamma === 1) return img; // 항등 → 무동작(왕복 오차 방지)
+  const mul = Math.pow(2, ev);
+  const ig = 1 / Math.max(0.01, gamma);
+  const lut = new Uint8ClampedArray(256);
+  for (let i = 0; i < 256; i++) {
+    let v = srgbToLinear(i / 255) * mul + offset;
+    v = v < 0 ? 0 : v;
+    v = Math.pow(v, ig);
+    lut[i] = linearToSrgb(v > 1 ? 1 : v) * 255;
+  }
+  return applyChannelLUT(img, "rgb", lut);
+}
+
+// 활기(Vibrance) / 채도(Saturation). 둘 다 -100~100.
+// 채도: 휘도 기준 선형 증감(전 픽셀 균일). 활기: 현재 채도가 낮은 픽셀일수록 강하게 바꾼다.
+export function vibrance(img, vib = 0, sat = 0) {
+  if (vib === 0 && sat === 0) return img;
+  const d = img.data;
+  const v = vib / 100, s = 1 + sat / 100;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    const curSat = (mx - mn) / 255;            // 현재 채도(0~1)
+    const f = s * (1 + v * (1 - curSat));      // 채도 배율 × 활기 배율(저채도일수록 큼)
+    const y = luminance(r, g, b);
+    d[i] = y + (r - y) * f;
+    d[i + 1] = y + (g - y) * f;
+    d[i + 2] = y + (b - y) * f;
+  }
+  return img;
+}
+
+// 포토 필터 프리셋(PS 기본 목록 근사). [hex, 표시 이름]
+export const PHOTO_FILTER_PRESETS = [
+  ["#ec8a00", "Warming 필터(85)"],
+  ["#fa9600", "Warming 필터(LBA)"],
+  ["#ebb113", "Warming 필터(81)"],
+  ["#006dff", "Cooling 필터(80)"],
+  ["#005dff", "Cooling 필터(LBB)"],
+  ["#00b5ff", "Cooling 필터(82)"],
+  ["#ea1a1a", "빨강"],
+  ["#f38417", "주황"],
+  ["#f9e31c", "노랑"],
+  ["#19c919", "초록"],
+  ["#1dcbea", "녹청"],
+  ["#1d35ea", "파랑"],
+  ["#9b1dea", "보라"],
+  ["#e318e3", "마젠타"],
+  ["#ac7a33", "세피아"],
+  ["#00c1b1", "수중"],
+];
+
+// 포토 필터(Photo Filter). color: "#rrggbb", density: 농도 0~100, preserveLum: 광도 유지.
+// 렌즈 앞 색 필터 근사 = 원색 × 필터색(곱하기)을 농도만큼 섞고, 광도 유지면 원래 휘도로 되돌린다.
+export function photoFilter(img, color = "#ec8a00", density = 25, preserveLum = true) {
+  const k = Math.max(0, Math.min(100, density)) / 100;
+  if (k === 0) return img;
+  const fc = typeof color === "string" ? hexToRgb(color) : color;
+  const fr = fc.r / 255, fg = fc.g / 255, fb = fc.b / 255;
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r0 = d[i], g0 = d[i + 1], b0 = d[i + 2];
+    let r = r0 + (r0 * fr - r0) * k;
+    let g = g0 + (g0 * fg - g0) * k;
+    let b = b0 + (b0 * fb - b0) * k;
+    if (preserveLum) {
+      const ly = luminance(r0, g0, b0), ny = luminance(r, g, b);
+      if (ny > 0) { const f = ly / ny; r *= f; g *= f; b *= f; }
+    }
+    d[i] = r; d[i + 1] = g; d[i + 2] = b;
+  }
+  return img;
+}
+
+// 선택 색상(Selective Color) 색 범위 키(UI 순서) + 표시 이름.
+export const SELECTIVE_COLOR_RANGES = ["reds", "yellows", "greens", "cyans", "blues", "magentas", "whites", "neutrals", "blacks"];
+export const SELECTIVE_COLOR_LABELS = {
+  reds: "빨강 계열", yellows: "노랑 계열", greens: "초록 계열", cyans: "녹청 계열", blues: "파랑 계열",
+  magentas: "마젠타 계열", whites: "흰색 계열", neutrals: "중간 계열", blacks: "검정 계열",
+};
+
+// 선택 색상(Selective Color).
+//   adj: { reds:[C,M,Y,K], yellows:[...], ..., blacks:[...] } 각 -100~100(%)
+//   relative: true=상대(기존 잉크량에 비례) / false=절대(잉크량을 직접 가감)
+// 각 픽셀이 각 색 범위에 속하는 정도(가중치)를 구하고, CMY 잉크(=1-RGB)에 C/M/Y + K 를 더한다.
+//   잉크 증가량 = 가중치 × 기준 × (색 조정 + K 조정), 기준 = 상대면 현재 잉크량(1-채널), 절대면 1.
+export function selectiveColor(img, adj = {}, relative = true) {
+  // 실제로 값이 있는 범위만 추린다(전부 0이면 무동작).
+  const active = [];
+  for (const key of SELECTIVE_COLOR_RANGES) {
+    const a = adj[key];
+    if (a && (a[0] || a[1] || a[2] || a[3])) active.push([key, a[0] / 100, a[1] / 100, a[2] / 100, a[3] / 100]);
+  }
+  if (!active.length) return img;
+  const d = img.data;
+  const w = {};
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    const md = r + g + b - mx - mn;
+    // 색 범위 가중치(0~1). 동률이면 앞 채널을 우선해 한 범위에만 속하게 한다.
+    w.reds = mx === r ? mx - md : 0;
+    w.greens = mx === g && mx !== r ? mx - md : 0;
+    w.blues = mx === b && mx !== r && mx !== g ? mx - md : 0;
+    w.cyans = mn === r ? md - mn : 0;
+    w.magentas = mn === g && mn !== r ? md - mn : 0;
+    w.yellows = mn === b && mn !== r && mn !== g ? md - mn : 0;
+    w.whites = mn > 0.5 ? (mn - 0.5) * 2 : 0;
+    w.blacks = mx < 0.5 ? (0.5 - mx) * 2 : 0;
+    w.neutrals = Math.max(0, 1 - (Math.abs(mx - 0.5) + Math.abs(mn - 0.5)));
+    let nr = r, ng = g, nb = b;
+    for (const [key, c, m, y, k] of active) {
+      const wt = w[key];
+      if (wt <= 0) continue;
+      // 채널별 잉크: R↔C, G↔M, B↔Y
+      nr -= wt * (relative ? 1 - r : 1) * (c + k);
+      ng -= wt * (relative ? 1 - g : 1) * (m + k);
+      nb -= wt * (relative ? 1 - b : 1) * (y + k);
+    }
+    d[i] = nr * 255; d[i + 1] = ng * 255; d[i + 2] = nb * 255;
+  }
+  return img;
+}
+
+// 흑백(혼합) 기본 가중치(%) — PS "기본값" 프리셋. 키 순서가 UI 순서.
+export const BLACK_WHITE_DEFAULTS = { reds: 40, yellows: 60, greens: 40, cyans: 60, blues: 20, magentas: 80 };
+
+// 흑백(Black & White, 색상별 가중 혼합). weights: { reds, yellows, greens, cyans, blues, magentas } (%; -200~300)
+// 회색 = 최솟값 + (최대-중간)×[최대 채널 원색 가중] + (중간-최소)×[최대·중간 채널 혼합색 가중].
+// (회색 픽셀은 가중치와 무관하게 그대로, 순수 빨강=reds%, 순수 노랑=yellows% 밝기가 된다.)
+export function blackWhite(img, weights = BLACK_WHITE_DEFAULTS) {
+  const W = { ...BLACK_WHITE_DEFAULTS, ...weights };
+  const wr = W.reds / 100, wy = W.yellows / 100, wg = W.greens / 100;
+  const wc = W.cyans / 100, wb = W.blues / 100, wm = W.magentas / 100;
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    let mx, md, mn, wPrim, wSec;
+    // 최대/중간/최소 채널과 해당 원색·혼합색 가중치 결정
+    if (r >= g && r >= b) {
+      mx = r; wPrim = wr;
+      if (g >= b) { md = g; mn = b; wSec = wy; } else { md = b; mn = g; wSec = wm; }
+    } else if (g >= b) {
+      mx = g; wPrim = wg;
+      if (r >= b) { md = r; mn = b; wSec = wy; } else { md = b; mn = r; wSec = wc; }
+    } else {
+      mx = b; wPrim = wb;
+      if (r >= g) { md = r; mn = g; wSec = wm; } else { md = g; mn = r; wSec = wc; }
+    }
+    const y = mn + (mx - md) * wPrim + (md - mn) * wSec;
+    d[i] = d[i + 1] = d[i + 2] = y;
+  }
+  return img;
+}
+
+// 채도 감소(Desaturate). PS와 같이 HSL 명도((최대+최소)/2)로 회색화한다.
+export function desaturate(img) {
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    d[i] = d[i + 1] = d[i + 2] = (Math.max(r, g, b) + Math.min(r, g, b)) / 2;
+  }
+  return img;
+}
+
+// Float32 단일 채널 박스 블러(누적합, 반경 r, 가장자리 복제). 가로→세로 분리형 O(n).
+// 3회 반복하면 가우시안 근사가 된다.
+function boxBlurF32(src, w, h, r) {
+  if (r < 1) return src;
+  const tmp = new Float32Array(w * h), out = new Float32Array(w * h);
+  const div = 2 * r + 1;
+  for (let y = 0; y < h; y++) {           // 가로
+    const row = y * w;
+    let acc = 0;
+    for (let x = -r; x <= r; x++) acc += src[row + (x < 0 ? 0 : x >= w ? w - 1 : x)];
+    for (let x = 0; x < w; x++) {
+      tmp[row + x] = acc / div;
+      const xo = x - r, xi = x + r + 1;
+      acc += src[row + (xi >= w ? w - 1 : xi)] - src[row + (xo < 0 ? 0 : xo)];
+    }
+  }
+  for (let x = 0; x < w; x++) {           // 세로
+    let acc = 0;
+    for (let y = -r; y <= r; y++) acc += tmp[(y < 0 ? 0 : y >= h ? h - 1 : y) * w + x];
+    for (let y = 0; y < h; y++) {
+      out[y * w + x] = acc / div;
+      const yo = y - r, yi = y + r + 1;
+      acc += tmp[(yi >= h ? h - 1 : yi) * w + x] - tmp[(yo < 0 ? 0 : yo) * w + x];
+    }
+  }
+  return out;
+}
+
+// 어두운 영역/밝은 영역(Shadows/Highlights).
+//   shadows/highlights: 양 0~100(%), toneWidth: 톤 폭 1~100(%), radius: 주변 휘도 반경(px, 0=픽셀 단위)
+// 주변 평균 휘도(박스 블러 3회=가우시안 근사)로 어두운/밝은 영역 마스크를 만들고,
+// 어두운 영역은 1-(1-c)^(1+2·양·마스크)로 들어올리고, 밝은 영역은 c^(1+2·양·마스크)로 눌러 준다.
+export function shadowsHighlights(img, shadows = 35, highlights = 0, toneWidth = 50, radius = 30) {
+  const sa = shadows / 100, ha = highlights / 100;
+  if (sa === 0 && ha === 0) return img;
+  const d = img.data, w = img.width, h = img.height, n = w * h;
+  const tw = Math.max(0.01, Math.min(1, toneWidth / 100));
+  let L = new Float32Array(n);
+  for (let p = 0, i = 0; p < n; p++, i += 4) L[p] = luminance(d[i], d[i + 1], d[i + 2]) / 255;
+  const r = Math.max(0, Math.round(radius / 3)); // 박스 3회 ≈ 반경 radius 가우시안
+  if (r >= 1) for (let k = 0; k < 3; k++) L = boxBlurF32(L, w, h, r);
+  for (let p = 0, i = 0; p < n; p++, i += 4) {
+    const lb = L[p];
+    const ms = lb < tw ? Math.pow(1 - lb / tw, 2) : 0;               // 어두운 영역 마스크
+    const mh = lb > 1 - tw ? Math.pow((lb - (1 - tw)) / tw, 2) : 0;  // 밝은 영역 마스크
+    if (ms <= 0 && mh <= 0) continue;
+    const es = 1 + 2 * sa * ms, eh = 1 + 2 * ha * mh;
+    for (let c = 0; c < 3; c++) {
+      let v = d[i + c] / 255;
+      if (ms > 0) v = 1 - Math.pow(1 - v, es);
+      if (mh > 0) v = Math.pow(v, eh);
+      d[i + c] = v * 255;
+    }
+  }
+  return img;
+}
+
+// 색상 대체(Replace Color).
+//   target: "#rrggbb" 또는 {r,g,b} — 대상 색, fuzziness: 허용치 0~200,
+//   hue: -180~180, sat: -100~100, light: -100~100 (색조/채도와 같은 규약)
+// 대상 색과의 RGB 거리로 선택 가중치(1→0 선형 감쇠, 반경=허용치×2)를 만들고, 그만큼 HSL 이동 결과를 섞는다.
+export function replaceColor(img, target = "#ff0000", fuzziness = 40, hue = 0, sat = 0, light = 0) {
+  if (hue === 0 && sat === 0 && light === 0) return img;
+  const t = typeof target === "string" ? hexToRgb(target) : target;
+  const rad = Math.max(0, fuzziness) * 2;
+  const satF = 1 + sat / 100, lightF = light / 100;
+  const d = img.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const dr = r - t.r, dg = g - t.g, db = b - t.b;
+    const dist = Math.sqrt(dr * dr + dg * dg + db * db);
+    const wt = rad > 0 ? 1 - dist / rad : (dist === 0 ? 1 : 0);
+    if (wt <= 0) continue;
+    const hsl = rgbToHsl(r, g, b);
+    let hh = (hsl.h + hue) % 360; if (hh < 0) hh += 360;
+    const s = Math.max(0, Math.min(1, hsl.s * satF));
+    const l = Math.max(0, Math.min(1, hsl.l + lightF));
+    const o = hslToRgb(hh, s, l);
+    d[i] = r + (o.r - r) * wt;
+    d[i + 1] = g + (o.g - g) * wt;
+    d[i + 2] = b + (o.b - b) * wt;
+  }
+  return img;
+}
+
+// 히스토그램(256)에서 양끝 clip 비율만큼 잘라낸 [low, high] 입력 범위를 찾는다.
+function clipRange(hist, total, clip) {
+  const cut = Math.floor(total * clip);
+  let lo = 0, hi = 255, acc = 0;
+  for (; lo < 255; lo++) { acc += hist[lo]; if (acc > cut) break; }
+  acc = 0;
+  for (; hi > 0; hi--) { acc += hist[hi]; if (acc > cut) break; }
+  return [lo, hi];
+}
+
+// 자동 대비(Auto Contrast). RGB 세 채널을 합친 분포의 양끝 clip(기본 0.1%)을 잘라 같은 비율로 펼친다(색조 유지).
+// 알파 0 픽셀은 히스토그램에서 제외(모두 투명이면 no-op).
+export function autoContrast(img, clip = 0.001) {
+  const d = img.data;
+  const hist = new Float32Array(256);
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;
+    n++; hist[d[i]]++; hist[d[i + 1]]++; hist[d[i + 2]]++;
+  }
+  if (!n) return img;
+  const [lo, hi] = clipRange(hist, n * 3, clip);
+  if (hi <= lo || (lo === 0 && hi === 255)) return img;
+  return levels(img, "rgb", lo, hi, 1, 0, 255);
+}
+
+// 자동 색상(Auto Color). 채널별로 양끝 clip 을 잘라 펼친 뒤(색 캐스트 제거),
+// 각 채널 평균이 세 채널 평균과 같아지도록 채널별 감마로 중간 톤을 중성화한다.
+// 알파 0 픽셀은 히스토그램·평균에서 제외(모두 투명이면 no-op).
+export function autoColor(img, clip = 0.001) {
+  const d = img.data;
+  let n = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] !== 0) n++;
+  if (!n) return img;
+  const CH = ["r", "g", "b"];
+  for (let c = 0; c < 3; c++) {
+    const hist = new Float32Array(256);
+    for (let i = c; i < d.length; i += 4) if (d[i + 3 - c] !== 0) hist[d[i]]++;
+    const [lo, hi] = clipRange(hist, n, clip);
+    if (hi > lo && !(lo === 0 && hi === 255)) levels(img, CH[c], lo, hi, 1, 0, 255);
+  }
+  // 중간 톤 중성화: 채널 평균(0~1) m 을 목표 평균 t 로 보내는 감마(m^(1/γ)=t → γ=ln m/ln t)
+  const mean = [0, 0, 0];
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;
+    mean[0] += d[i]; mean[1] += d[i + 1]; mean[2] += d[i + 2];
+  }
+  for (let c = 0; c < 3; c++) mean[c] = mean[c] / n / 255;
+  const target = (mean[0] + mean[1] + mean[2]) / 3;
+  if (target <= 0.001 || target >= 0.999) return img;
+  for (let c = 0; c < 3; c++) {
+    const m = mean[c];
+    if (m <= 0.001 || m >= 0.999 || Math.abs(m - target) < 0.002) continue;
+    const g = Math.max(0.5, Math.min(2, Math.log(m) / Math.log(target))); // 과보정 방지 0.5~2
+    levels(img, CH[c], 0, 255, g, 0, 255);
   }
   return img;
 }

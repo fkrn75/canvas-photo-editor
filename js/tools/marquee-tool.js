@@ -7,8 +7,10 @@
 // rect/ellipse는 드래그 중 Shift=정사각형(원) 고정, Alt=시작점을 중심으로 그린다.
 // row/col은 한 번 클릭하면 그 줄 전체를 선택한다(드래그 무관).
 // 선택은 selection-manager의 setRect/setEllipse/setRowCol으로 위임하며 마칭앤츠는 그쪽이 담당.
+// 스냅(보기 > 스냅)이 켜져 있으면 시작점·끝점을 가이드/그리드/문서 경계에 화면 8px 이내로 붙인다.
 
 import { BaseTool } from "./base-tool.js";
+import { snapPoint, snapThreshold, snapTargetsFromApp } from "../render/snap.js";
 
 export class MarqueeTool extends BaseTool {
   get cursor() { return "crosshair"; }
@@ -16,23 +18,33 @@ export class MarqueeTool extends BaseTool {
   // 현재 모드(미설정이면 rect)
   _mode() { return this.state.marqueeMode || "rect"; }
 
+  // 스냅 대상이 있으면 점을 스냅(드래그 시작 시 고정한 대상 사용)
+  _snap(pt) {
+    if (!this.snapTargets) return pt;
+    const s = snapPoint(pt.x, pt.y, this.snapTargets, snapThreshold(this.app.viewport.zoom));
+    return { x: s.x, y: s.y };
+  }
+
   onPointerDown(pt, e) {
     this.sel = true;
-    this.start = pt;
-    this.end = pt;
     this.mode = this._mode(); // 드래그 도중 모드가 바뀌어도 일관되게 시작 시점 고정
+    // 행/열 모드는 클릭 한 줄 선택이라 스냅하지 않는다
+    this.snapTargets = (this.mode === "rect" || this.mode === "ellipse") ? snapTargetsFromApp(this.app) : null;
+    this.start = this._snap(pt);
+    this.end = this.start;
   }
 
   onPointerMove(pt, e) {
     if (!this.sel) return;
-    this.end = pt;
+    this.end = this._snap(pt);
     this.app.renderer.requestRender();
   }
 
   onPointerUp(pt, e) {
     if (!this.sel) return;
     this.sel = false;
-    this.end = pt;
+    this.end = this._snap(pt);
+    this.snapTargets = null;
     const mode = this.mode;
 
     if (mode === "row" || mode === "col") {

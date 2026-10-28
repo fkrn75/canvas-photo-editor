@@ -89,7 +89,7 @@ export const TOOLS = [
         opacity: num("불투명도 0~100"),
         fill_opacity: num("채우기 불투명도 0~100(레이어 스타일은 유지)"),
         visible: { type: "boolean" },
-        blend_mode: { type: "string", description: "normal, multiply, screen, overlay, darken, lighten, color-dodge, color-burn, hard-light, soft-light, difference, exclusion, hue, saturation, color, luminosity, dissolve, linear-burn, linear-dodge, vivid-light, linear-light, pin-light" },
+        blend_mode: { type: "string", description: "normal, multiply, screen, overlay, darken, lighten, color-dodge, color-burn, hard-light, soft-light, difference, exclusion, hue, saturation, color, luminosity, dissolve, linear-burn, linear-dodge, vivid-light, linear-light, pin-light, hard-mix, darker-color, lighter-color, subtract, divide" },
       },
     },
   },
@@ -250,11 +250,11 @@ export const TOOLS = [
   },
   {
     name: "add_adjustment_layer",
-    description: "비파괴 조정 레이어 추가. type: brightnessContrast{b,c} | hueSaturation{h,s,l} | posterize{levels} | threshold{level} | invert | grayscale | levels | curves(params 생략 시 기본값).",
+    description: "비파괴 조정 레이어 추가. type: brightnessContrast{b,c} | hueSaturation{h,s,l} | posterize{levels} | threshold{level} | invert | grayscale | levels | curves | exposure | vibrance | colorBalance | blackWhite | photoFilter | channelMixer | gradientMap | selectiveColor(params 생략 시 기본값).",
     inputSchema: {
       type: "object",
       properties: {
-        type: { type: "string", enum: ["brightnessContrast", "hueSaturation", "levels", "curves", "posterize", "threshold", "invert", "grayscale"] },
+        type: { type: "string", enum: ["brightnessContrast", "hueSaturation", "levels", "curves", "posterize", "threshold", "invert", "grayscale", "exposure", "vibrance", "colorBalance", "blackWhite", "photoFilter", "channelMixer", "gradientMap", "selectiveColor"] },
         params: { type: "object" },
       },
       required: ["type"],

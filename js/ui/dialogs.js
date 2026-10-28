@@ -10,6 +10,7 @@ export class Dialogs {
   }
 
   // 공통 모달 골격. body(Element)를 받고 확인/취소 버튼을 단다.
+  // onOk(ui)가 false를 반환하면 닫지 않는다(입력 보존). ui.error(msg)로 다이얼로그 안에 오류를 보인다.
   _open(title, body, onOk, onCancel, okText = "확인") {
     const backdrop = document.createElement("div");
     backdrop.className = "dialog-backdrop";
@@ -31,6 +32,18 @@ export class Dialogs {
     const bodyWrap = document.createElement("div");
     bodyWrap.className = "dialog-body";
     bodyWrap.appendChild(body);
+
+    // 검증 오류 표시줄: onOk가 false를 반환하며 ui.error(msg)를 호출하면 여기에 보인다(다이얼로그 유지).
+    const errLine = document.createElement("div");
+    errLine.setAttribute("role", "alert");
+    errLine.style.cssText = "display:none;color:#e5533d;font-size:12px;margin-top:8px;";
+    bodyWrap.appendChild(errLine);
+    const ui = {
+      error(msg) {
+        errLine.textContent = msg || "";
+        errLine.style.display = msg ? "block" : "none";
+      },
+    };
 
     const foot = document.createElement("div");
     foot.className = "dialog-foot";
@@ -58,7 +71,14 @@ export class Dialogs {
       if (prevFocus?.focus) prevFocus.focus();
     };
     const cancel = () => { onCancel?.(); close(); };
-    okBtn.addEventListener("click", () => { onOk?.(); close(); });
+    // 확인 경로(버튼/Enter 공통): onOk가 false를 반환하면 닫지 않고 입력을 유지한다.
+    // (undefined 등 그 외 반환값은 기존처럼 닫음 — 하위 호환)
+    const confirm = () => {
+      ui.error("");
+      if (onOk?.(ui) === false) return;
+      close();
+    };
+    okBtn.addEventListener("click", confirm);
     cancelBtn.addEventListener("click", cancel);
     backdrop.addEventListener("mousedown", (e) => { if (e.target === backdrop) cancel(); });
 
@@ -69,7 +89,7 @@ export class Dialogs {
     const keyHandler = (e) => {
       e.stopPropagation();
       if (e.key === "Escape") { cancel(); return; }
-      if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") { onOk?.(); close(); return; }
+      if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") { confirm(); return; }
       if (e.key === "Tab") {
         const els = focusables();
         if (!els.length) return;
@@ -114,13 +134,13 @@ export class Dialogs {
       row.appendChild(input);
       body.appendChild(row);
     }
-    this._open(title, body, () => {
+    this._open(title, body, (ui) => {
       const out = {};
       for (const f of fields) {
         const v = refs[f.key].value;
         out[f.key] = f.type === "number" ? parseFloat(v) : v;
       }
-      onOk(out);
+      return onOk(out, ui);
     }, null, okText);
   }
 
@@ -151,7 +171,7 @@ export class Dialogs {
       body.appendChild(row);
     }
     this._open(title, body,
-      () => onCommit({ ...values }),
+      () => { onCommit({ ...values }); },
       () => onCancel?.(),
       "적용");
   }

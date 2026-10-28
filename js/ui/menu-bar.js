@@ -15,6 +15,7 @@ import { convertGrayscale, convertRGB, openBitmapDialog, openIndexedDialog } fro
 import { openColorTable } from "./color-table-dialog.js";
 import { openPatternMaker } from "./pattern-maker-dialog.js";
 import { openLiquify } from "./liquify-dialog.js";
+import { EXT_MENU_SOURCES } from "./menus/index.js";
 
 export class MenuBar {
   constructor(app, el) {
@@ -25,7 +26,39 @@ export class MenuBar {
     window.addEventListener("click", () => this._close());
   }
 
+  // 기본 메뉴에 확장 모듈(js/ui/menus/*)의 항목을 병합한다.
+  // 같은 제목의 하위 메뉴 그룹(sub)은 합치고, 나머지는 해당 메뉴 끝에 구분선 뒤로 붙인다.
   _menus() {
+    const menus = this._baseMenus();
+    for (const src of EXT_MENU_SOURCES) {
+      let ext;
+      try { ext = src(this.app) || {}; } catch (err) { console.error("[menu] 확장 메뉴 로드 실패", err); continue; }
+      for (const [title, items] of Object.entries(ext)) {
+        if (!items?.length) continue;
+        let menu = menus.find((m) => m.title === title);
+        // 새 메뉴는 도움말 바로 앞에 넣는다(보기 → 창 → 도움말)
+        if (!menu) { menu = { title, items: [] }; menus.splice(menus.length - 1, 0, menu); }
+        const loose = [];
+        for (const it of items) {
+          const group = it.sub && menu.items.find((m) => m.sub && m.label === it.label);
+          // after: "<기존 라벨>" 이 있으면 그 항목 바로 뒤에 끼워 넣는다(PS 메뉴 순서 유지용)
+          const anchor = it.after && menu.items.findIndex((m) => m.label === it.after);
+          if (group) group.sub.push(...it.sub);
+          else if (anchor >= 0) menu.items.splice(anchor + 1 + (it._offset || 0), 0, it);
+          else loose.push(it);
+        }
+        if (loose.length) {
+          if (menu.items.length && !loose[0].sep) menu.items.push({ sep: true });
+          menu.items.push(...loose);
+        }
+      }
+    }
+    // 비어 있는 하위 메뉴 그룹은 숨긴다
+    for (const m of menus) m.items = m.items.filter((it) => !it.sub || it.sub.length);
+    return menus;
+  }
+
+  _baseMenus() {
     const a = this.app;
     return [
       { title: "파일", items: [
@@ -52,6 +85,9 @@ export class MenuBar {
         { sep: true },
         { label: "빠른 마스크 전환", shortcut: "Q", fn: () => a.quickMask.toggle() },
         { sep: true },
+        { label: "선택 영역 삭제", shortcut: "Del", fn: () => a.deleteSelection() },
+      ]},
+      { title: "선택", items: [
         { label: "모두 선택", shortcut: "Ctrl+A", fn: () => a.selectAll() },
         { label: "불투명 영역 선택", fn: () => a.selectOpaque() },
         { label: "선택 반전", shortcut: "Shift+Ctrl+I", fn: () => a.invertSelection() },
@@ -68,8 +104,6 @@ export class MenuBar {
         { label: "유사 영역…", fn: () => a.similar() },
         { label: "선택 저장…", fn: () => a.saveSelection() },
         { label: "선택 불러오기…", fn: () => a.loadSelection() },
-        { sep: true },
-        { label: "선택 영역 삭제", shortcut: "Del", fn: () => a.deleteSelection() },
       ]},
       { title: "이미지", items: [
         { label: "모드: 회색조", fn: () => convertGrayscale(a) },
@@ -77,9 +111,6 @@ export class MenuBar {
         { label: "모드: 비트맵…", fn: () => openBitmapDialog(a) },
         { label: "모드: RGB 색상", fn: () => convertRGB(a) },
         { label: "색상표(Color Table)…", fn: () => openColorTable(a) },
-        { sep: true },
-        { label: "이미지 크기…", fn: () => this._sizeDialog("이미지 크기", (w, h) => a.resizeImage(w, h)) },
-        { label: "캔버스 크기…", fn: () => this._sizeDialog("캔버스 크기", (w, h) => a.resizeCanvas(w, h)) },
         { sep: true },
         { label: "시계 방향 90°", fn: () => a.rotate90(1) },
         { label: "반시계 방향 90°", fn: () => a.rotate90(-1) },
@@ -137,25 +168,37 @@ export class MenuBar {
         { label: "균일화", fn: () => a.applyFilter("균일화", Adjust.equalize) },
       ]},
       { title: "필터", items: [
-        { label: "가우시안 블러…", fn: () => a.runAdjustment("가우시안 블러", [
-          { key: "r", label: "반경", min: 1, max: 100, step: 1, value: 4, suffix: "px" },
-        ], (img, v) => Filters.gaussianBlur(img, v.r)) },
-        { label: "샤픈…", fn: () => a.runAdjustment("샤픈", [
-          { key: "a", label: "강도", min: 0, max: 300, step: 1, value: 80, scale: 0.01, suffix: "%" },
-        ], (img, v) => Filters.sharpen(img, v.a / 100)) },
-        { label: "언샤프 마스크…", fn: () => openUnsharpMask(a) },
-        { label: "하이 패스…", fn: () => openHighPass(a) },
-        { sep: true },
-        { label: "모션 블러…", fn: () => openMotionBlur(a) },
-        { label: "미디언…", fn: () => openMedian(a) },
-        { label: "모자이크…", fn: () => openMosaic(a) },
-        { label: "엣지 찾기", fn: () => a.applyFilter("엣지 찾기", Filters.findEdges) },
-        { sep: true },
-        { label: "노이즈 추가…", fn: () => a.runAdjustment("노이즈 추가", [
-          { key: "a", label: "양", min: 1, max: 100, step: 1, value: 24 },
-        ], (img, v) => Filters.addNoise(img, v.a, true)) },
-        { label: "세피아", fn: () => a.applyFilter("세피아", Filters.sepia) },
-        { label: "엠보스", fn: () => a.applyFilter("엠보스", Filters.emboss) },
+        { label: "흐림 효과", sub: [
+          { label: "가우시안 블러…", fn: () => a.runAdjustment("가우시안 블러", [
+            { key: "r", label: "반경", min: 1, max: 100, step: 1, value: 4, suffix: "px" },
+          ], (img, v) => Filters.gaussianBlur(img, v.r)) },
+          { label: "모션 블러…", fn: () => openMotionBlur(a) },
+        ]},
+        { label: "선명 효과", sub: [
+          { label: "샤픈…", fn: () => a.runAdjustment("샤픈", [
+            { key: "a", label: "강도", min: 0, max: 300, step: 1, value: 80, scale: 0.01, suffix: "%" },
+          ], (img, v) => Filters.sharpen(img, v.a / 100)) },
+          { label: "언샤프 마스크…", fn: () => openUnsharpMask(a) },
+        ]},
+        { label: "노이즈", sub: [
+          { label: "노이즈 추가…", fn: () => a.runAdjustment("노이즈 추가", [
+            { key: "a", label: "양", min: 1, max: 100, step: 1, value: 24 },
+          ], (img, v) => Filters.addNoise(img, v.a, true)) },
+          { label: "미디언…", fn: () => openMedian(a) },
+        ]},
+        { label: "왜곡", sub: [] },
+        { label: "픽셀화", sub: [
+          { label: "모자이크…", fn: () => openMosaic(a) },
+        ]},
+        { label: "렌더", sub: [] },
+        { label: "스타일화", sub: [
+          { label: "엣지 찾기", fn: () => a.applyFilter("엣지 찾기", Filters.findEdges) },
+          { label: "엠보스", fn: () => a.applyFilter("엠보스", Filters.emboss) },
+          { label: "세피아", fn: () => a.applyFilter("세피아", Filters.sepia) },
+        ]},
+        { label: "기타", sub: [
+          { label: "하이 패스…", fn: () => openHighPass(a) },
+        ]},
         { sep: true },
         { label: "픽셀 유동화…", fn: () => openLiquify(a) },
         { label: "패턴 메이커…", fn: () => openPatternMaker(a) },
@@ -190,7 +233,7 @@ export class MenuBar {
   }
 
   _about() {
-    const version = globalThis.chrome?.runtime?.getManifest?.()?.version || "0.8.0";
+    const version = globalThis.chrome?.runtime?.getManifest?.()?.version || "0.9.0";
     this.app.dialogs.alert("정보", `Canvas Photo Editor v${version}`);
   }
 
@@ -210,27 +253,7 @@ export class MenuBar {
 
       const dd = document.createElement("div");
       dd.className = "menu-dropdown";
-      for (const row of m.items) {
-        if (row.sep) {
-          const s = document.createElement("div");
-          s.className = "menu-sep";
-          dd.appendChild(s);
-          continue;
-        }
-        const r = document.createElement("div");
-        r.className = "menu-row";
-        const t = document.createElement("span");
-        t.textContent = row.label;
-        r.appendChild(t);
-        if (row.shortcut) {
-          const sc = document.createElement("span");
-          sc.className = "shortcut";
-          sc.textContent = row.shortcut;
-          r.appendChild(sc);
-        }
-        r.addEventListener("click", (e) => { e.stopPropagation(); this._close(); row.fn(); });
-        dd.appendChild(r);
-      }
+      this._buildRows(m.items, dd);
       item.appendChild(dd);
 
       item.addEventListener("click", (e) => {
@@ -267,6 +290,45 @@ export class MenuBar {
     this.app.bus.on(EVT.HISTORY_CHANGED, () => this._syncHistory());
   }
 
+  // 메뉴 행 생성. sub 가 있으면 마우스를 올렸을 때 오른쪽으로 펼쳐지는 하위 메뉴를 만든다.
+  _buildRows(items, container) {
+    for (const row of items) {
+      if (row.sep) {
+        const s = document.createElement("div");
+        s.className = "menu-sep";
+        container.appendChild(s);
+        continue;
+      }
+      const r = document.createElement("div");
+      r.className = "menu-row";
+      const t = document.createElement("span");
+      t.textContent = row.label;
+      r.appendChild(t);
+      if (row.sub) {
+        r.classList.add("has-sub");
+        const arrow = document.createElement("span");
+        arrow.className = "shortcut";
+        arrow.textContent = "▸";
+        r.appendChild(arrow);
+        const sub = document.createElement("div");
+        sub.className = "menu-dropdown menu-sub";
+        this._buildRows(row.sub, sub);
+        r.appendChild(sub);
+        r.addEventListener("click", (e) => e.stopPropagation());
+        container.appendChild(r);
+        continue;
+      }
+      if (row.shortcut) {
+        const sc = document.createElement("span");
+        sc.className = "shortcut";
+        sc.textContent = row.shortcut;
+        r.appendChild(sc);
+      }
+      r.addEventListener("click", (e) => { e.stopPropagation(); this._close(); row.fn(); });
+      container.appendChild(r);
+    }
+  }
+
   _syncHistory() {
     this._undoBtn.disabled = !this.app.history.canUndo;
     this._redoBtn.disabled = !this.app.history.canRedo;
@@ -287,14 +349,6 @@ export class MenuBar {
         this.app.renderer.requestRender();
       }
     }, "만들기");
-  }
-
-  _sizeDialog(title, apply) {
-    const a = this.app;
-    a.dialogs.form(title, [
-      { key: "w", label: "폭(px)", type: "number", value: a.layers.width, min: 1, max: 8000 },
-      { key: "h", label: "높이(px)", type: "number", value: a.layers.height, min: 1, max: 8000 },
-    ], (v) => apply(v.w, v.h), "적용");
   }
 
   _newGuide() {

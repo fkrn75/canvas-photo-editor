@@ -66,6 +66,20 @@ export function normalizeCurvesParams(p) {
   return out;
 }
 
+// 채널 혼합 조정 파라미터(% 단위) → 엔진 channelMixer 규약({ r:[배수×3, 상수(0~255 스케일)], ... }).
+// 단색(mono)이면 gray 행을 세 출력 채널에 동일하게 쓴다.
+export function channelMixFromParams(p = {}) {
+  const row = (a, def) => {
+    const v = Array.isArray(a) ? a : def;
+    return [(v[0] ?? 0) / 100, (v[1] ?? 0) / 100, (v[2] ?? 0) / 100, ((v[3] ?? 0) / 100) * 255];
+  };
+  if (p.mono) {
+    const g = row(p.gray, [40, 40, 20, 0]);
+    return { r: g.slice(), g: g.slice(), b: g.slice() };
+  }
+  return { r: row(p.r, [100, 0, 0, 0]), g: row(p.g, [0, 100, 0, 0]), b: row(p.b, [0, 0, 100, 0]) };
+}
+
 // ── 조정 타입 메타 정의 ──────────────────────────────────────────────────────
 // 각 타입: { label, defaults, sliders, editor, apply(img, params) }
 //   label    : 메뉴/레이어 행 표시 이름
@@ -73,10 +87,17 @@ export function normalizeCurvesParams(p) {
 //   sliders  : 편집 다이얼로그용 슬라이더 정의 배열(없으면 슬라이더 자동생성 안 함)
 //              [{ key, label, min, max, step, suffix }]
 //   editor   : 복합 커스텀 UI 종류("levels" | "curves"). 있으면 다이얼로그가 전용 에디터를 띄운다.
+//   bank     : (선택) "범위 선택 + 범위별 슬라이더" 묶음. 값은 params[선택값][idx] 에 저장된다.
+//              { label, options: [[값, 표시]], sliders: [{ idx, label, min, max, step, suffix }] }
+//              (색상 균형의 톤 영역, 선택 색상의 색 범위, 채널 혼합의 출력 채널)
+//   fields   : (선택) 슬라이더 외 컨트롤 [{ key, label, type: "checkbox"|"select"|"color", options? }]
 //   apply    : ImageData 를 in-place 보정(adjustments.js 위임)
 //
 // (레벨/커브는 sliders 로 표현이 어려운 복합 UI라 editor 로 전용 에디터를 연결한다.
-//  나머지(밝기/대비·색조/채도·반전·흑백·포스터화·한계값)는 슬라이더형으로 제공한다.)
+//  나머지는 sliders/bank/fields 메타만으로 편집 다이얼로그가 자동 생성된다 — adjust-dialogs.js buildParamControls.
+//  같은 메타를 보정 메뉴의 파괴적 다이얼로그도 재사용한다.)
+//
+// 순서 = 레이어 메뉴 "새 조정 레이어: …" 표시 순서(PS 순서를 따름).
 export const ADJUSTMENT_TYPES = {
   brightnessContrast: {
     label: "밝기/대비",
@@ -86,16 +107,6 @@ export const ADJUSTMENT_TYPES = {
       { key: "c", label: "대비", min: -100, max: 100, step: 1 },
     ],
     apply: (img, p) => Adjust.brightnessContrast(img, p.b ?? 0, p.c ?? 0),
-  },
-  hueSaturation: {
-    label: "색조/채도",
-    defaults: { h: 0, s: 0, l: 0 },
-    sliders: [
-      { key: "h", label: "색조", min: -180, max: 180, step: 1 },
-      { key: "s", label: "채도", min: -100, max: 100, step: 1 },
-      { key: "l", label: "밝기", min: -100, max: 100, step: 1 },
-    ],
-    apply: (img, p) => Adjust.hueSaturation(img, p.h ?? 0, p.s ?? 0, p.l ?? 0),
   },
   levels: {
     label: "레벨",
@@ -122,6 +133,106 @@ export const ADJUSTMENT_TYPES = {
       }
     },
   },
+  exposure: {
+    label: "노출",
+    defaults: { ev: 0, offset: 0, gamma: 1 },
+    sliders: [
+      { key: "ev", label: "노출", min: -10, max: 10, step: 0.01 },
+      { key: "offset", label: "오프셋", min: -0.5, max: 0.5, step: 0.001 },
+      { key: "gamma", label: "감마", min: 0.01, max: 9.99, step: 0.01 },
+    ],
+    apply: (img, p) => Adjust.exposure(img, p.ev ?? 0, p.offset ?? 0, p.gamma ?? 1),
+  },
+  vibrance: {
+    label: "활기",
+    defaults: { vibrance: 0, saturation: 0 },
+    sliders: [
+      { key: "vibrance", label: "활기", min: -100, max: 100, step: 1 },
+      { key: "saturation", label: "채도", min: -100, max: 100, step: 1 },
+    ],
+    apply: (img, p) => Adjust.vibrance(img, p.vibrance ?? 0, p.saturation ?? 0),
+  },
+  hueSaturation: {
+    label: "색조/채도",
+    defaults: { h: 0, s: 0, l: 0 },
+    sliders: [
+      { key: "h", label: "색조", min: -180, max: 180, step: 1 },
+      { key: "s", label: "채도", min: -100, max: 100, step: 1 },
+      { key: "l", label: "밝기", min: -100, max: 100, step: 1 },
+    ],
+    apply: (img, p) => Adjust.hueSaturation(img, p.h ?? 0, p.s ?? 0, p.l ?? 0),
+  },
+  colorBalance: {
+    label: "색상 균형",
+    // 톤 영역별 [시안↔빨강, 마젠타↔녹색, 노랑↔파랑] (-100~100) + 광도 유지
+    defaults: { shadows: [0, 0, 0], midtones: [0, 0, 0], highlights: [0, 0, 0], preserveLum: true },
+    bank: {
+      label: "톤 균형",
+      options: [["shadows", "어두운 영역"], ["midtones", "중간 영역"], ["highlights", "밝은 영역"]],
+      initial: "midtones",
+      sliders: [
+        { idx: 0, label: "시안↔빨강", min: -100, max: 100, step: 1 },
+        { idx: 1, label: "마젠타↔녹색", min: -100, max: 100, step: 1 },
+        { idx: 2, label: "노랑↔파랑", min: -100, max: 100, step: 1 },
+      ],
+    },
+    fields: [{ key: "preserveLum", label: "광도 유지", type: "checkbox" }],
+    apply: (img, p) => {
+      const sh = p.shadows || [0, 0, 0], mi = p.midtones || [0, 0, 0], hi = p.highlights || [0, 0, 0];
+      // 전부 0이면 무동작(광도 유지 스케일의 반올림 오차도 피한다)
+      if (![...sh, ...mi, ...hi].some((v) => v)) return;
+      Adjust.colorBalance(img, sh, mi, hi, p.preserveLum !== false);
+    },
+  },
+  blackWhite: {
+    // 기존 "흑백"(grayscale, 파라미터 없음)과 구분되는 색상별 가중 혼합 흑백
+    label: "흑백(혼합)",
+    defaults: { ...Adjust.BLACK_WHITE_DEFAULTS },
+    sliders: [
+      { key: "reds", label: "빨강 계열", min: -200, max: 300, step: 1, suffix: "%" },
+      { key: "yellows", label: "노랑 계열", min: -200, max: 300, step: 1, suffix: "%" },
+      { key: "greens", label: "초록 계열", min: -200, max: 300, step: 1, suffix: "%" },
+      { key: "cyans", label: "녹청 계열", min: -200, max: 300, step: 1, suffix: "%" },
+      { key: "blues", label: "파랑 계열", min: -200, max: 300, step: 1, suffix: "%" },
+      { key: "magentas", label: "마젠타 계열", min: -200, max: 300, step: 1, suffix: "%" },
+    ],
+    apply: (img, p) => Adjust.blackWhite(img, p),
+  },
+  photoFilter: {
+    label: "포토 필터",
+    defaults: { color: Adjust.PHOTO_FILTER_PRESETS[0][0], density: 25, preserveLum: true },
+    sliders: [{ key: "density", label: "농도", min: 0, max: 100, step: 1, suffix: "%" }],
+    fields: [
+      { key: "color", label: "필터", type: "select", options: [...Adjust.PHOTO_FILTER_PRESETS, ["", "사용자 정의"]] },
+      { key: "color", label: "색상", type: "color" },
+      { key: "preserveLum", label: "광도 유지", type: "checkbox" },
+    ],
+    apply: (img, p) => Adjust.photoFilter(img, p.color || "#ec8a00", p.density ?? 25, p.preserveLum !== false),
+  },
+  channelMixer: {
+    label: "채널 혼합",
+    // 출력 채널별 [빨강%, 녹색%, 파랑%, 상수%]. 단색이면 gray 행을 세 채널에 동일 적용.
+    defaults: { r: [100, 0, 0, 0], g: [0, 100, 0, 0], b: [0, 0, 100, 0], gray: [40, 40, 20, 0], mono: false },
+    bank: {
+      label: "출력 채널",
+      options: [["r", "빨강"], ["g", "녹색"], ["b", "파랑"], ["gray", "회색(단색)"]],
+      initial: "r",
+      sliders: [
+        { idx: 0, label: "빨강", min: -200, max: 200, step: 1, suffix: "%" },
+        { idx: 1, label: "녹색", min: -200, max: 200, step: 1, suffix: "%" },
+        { idx: 2, label: "파랑", min: -200, max: 200, step: 1, suffix: "%" },
+        { idx: 3, label: "상수", min: -200, max: 200, step: 1, suffix: "%" },
+      ],
+    },
+    fields: [{ key: "mono", label: "단색", type: "checkbox" }],
+    apply: (img, p) => Adjust.channelMixer(img, channelMixFromParams(p)),
+  },
+  invert: {
+    label: "반전",
+    defaults: {},
+    sliders: null, // 파라미터 없음 → 다이얼로그 불필요
+    apply: (img) => Adjust.invert(img),
+  },
   posterize: {
     label: "포스터화",
     defaults: { levels: 4 },
@@ -138,11 +249,45 @@ export const ADJUSTMENT_TYPES = {
     ],
     apply: (img, p) => Adjust.threshold(img, p.level ?? 128),
   },
-  invert: {
-    label: "반전",
-    defaults: {},
-    sliders: null, // 파라미터 없음 → 다이얼로그 불필요
-    apply: (img) => Adjust.invert(img),
+  gradientMap: {
+    label: "그라디언트 맵",
+    // 기본 = 레이어 "생성 시점"의 전경→배경색. 게터라 defaultParams() 호출 때마다 현재 색을 읽어
+    // 파라미터에 값으로 박아 둔다(이후 전경/배경색을 바꿔도 이 레이어는 변하지 않음).
+    get defaults() {
+      const st = globalThis.app?.state;
+      return { colorA: st?.foreground || "#000000", colorB: st?.background || "#ffffff", reverse: false };
+    },
+    fields: [
+      { key: "colorA", label: "어두운 쪽", type: "color" },
+      { key: "colorB", label: "밝은 쪽", type: "color" },
+      { key: "reverse", label: "반전", type: "checkbox" },
+    ],
+    apply: (img, p) => {
+      const a = p.colorA || "#000000", b = p.colorB || "#ffffff";
+      Adjust.gradientMap(img, p.reverse ? Adjust.gradientLUTFromColors(b, a) : Adjust.gradientLUTFromColors(a, b));
+    },
+  },
+  selectiveColor: {
+    label: "선택 색상",
+    // 색 범위별 [C, M, Y, K] (-100~100%) + 방법(상대/절대)
+    get defaults() {
+      const o = { method: "relative" };
+      for (const k of Adjust.SELECTIVE_COLOR_RANGES) o[k] = [0, 0, 0, 0];
+      return o;
+    },
+    bank: {
+      label: "색상",
+      options: Adjust.SELECTIVE_COLOR_RANGES.map((k) => [k, Adjust.SELECTIVE_COLOR_LABELS[k]]),
+      initial: "reds",
+      sliders: [
+        { idx: 0, label: "녹청", min: -100, max: 100, step: 1, suffix: "%" },
+        { idx: 1, label: "마젠타", min: -100, max: 100, step: 1, suffix: "%" },
+        { idx: 2, label: "노랑", min: -100, max: 100, step: 1, suffix: "%" },
+        { idx: 3, label: "검정", min: -100, max: 100, step: 1, suffix: "%" },
+      ],
+    },
+    fields: [{ key: "method", label: "방법", type: "select", options: [["relative", "상대치"], ["absolute", "절대치"]] }],
+    apply: (img, p) => Adjust.selectiveColor(img, p, p.method !== "absolute"),
   },
   grayscale: {
     label: "흑백",
@@ -156,7 +301,13 @@ export const ADJUSTMENT_TYPES = {
 export function adjustmentHasDialog(type) {
   const meta = ADJUSTMENT_TYPES[type];
   if (!meta) return false;
-  return !!meta.editor || !!(meta.sliders && meta.sliders.length);
+  return !!meta.editor || !!(meta.sliders && meta.sliders.length) || !!meta.bank || !!(meta.fields && meta.fields.length);
+}
+
+// 조정 타입의 자동 UI 명세 { sliders, bank, fields } (adjust-dialogs.js buildParamControls 입력).
+export function adjustmentSpec(type) {
+  const meta = ADJUSTMENT_TYPES[type];
+  return { sliders: meta?.sliders || [], bank: meta?.bank || null, fields: meta?.fields || [] };
 }
 
 // 조정 타입의 전용 에디터 종류("levels" | "curves") 또는 null(슬라이더형).
@@ -213,7 +364,8 @@ export function createAdjustmentLayer(width, height, type, params = null, name =
   // 조정 레이어 식별 메타. (캔버스는 빈 투명 그대로 — 합성 시 자체 픽셀은 쓰지 않음)
   layer.type = "adjustment";
   layer.adjustmentType = type;
-  layer.adjustmentParams = params ? { ...params } : defaultParams(type);
+  // 중첩 배열(색상 균형·선택 색상·채널 혼합) 파라미터가 호출자와 공유되지 않도록 깊은 복사
+  layer.adjustmentParams = params ? cloneParams(params) : defaultParams(type);
   return layer;
 }
 

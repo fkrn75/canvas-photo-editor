@@ -1,5 +1,5 @@
-// blend.js — 레이어 블렌드 모드(Photoshop 7 레이어 모드 22종).
-// 네이티브 16종은 Canvas globalCompositeOperation으로, 커스텀 6종은 per-pixel로 합성한다.
+// blend.js — 레이어 블렌드 모드 27종(PS7 22종 + 이후 PS 버전 모드 5종).
+// 네이티브 16종은 Canvas globalCompositeOperation으로, 커스텀 11종은 per-pixel로 합성한다.
 // per-pixel은 W3C Compositing & Blending 1 명세의 블렌드식 + source-over 합성식(straight alpha)을 따른다.
 //
 // 좌표계 주의: per-pixel 정확성을 위해 합성은 반드시 "문서 좌표계"(레이어 캔버스와 1:1)에서 수행한다.
@@ -7,7 +7,8 @@
 
 // ── 드롭다운 구성 ──────────────────────────────────────────────────────────
 // id: 내부 식별자(layer.blendMode 값) / label: 화면 표시(영문+한글 병기) / sep: 그룹 구분선
-// PS7 레이어 모드 22종. (Behind/Clear=페인팅 전용, Hard Mix=PS7 미존재 → 제외)
+// PS7 레이어 모드 22종 + 이후 PS 모드 5종(하드 혼합·어두운 색상·밝은 색상·빼기·나누기).
+// (Behind/Clear=페인팅 전용 → 제외)
 export const BLEND_MODES = [
   { id: "normal",       label: "Normal · 표준" },
   { id: "dissolve",     label: "Dissolve · 디졸브" },
@@ -16,11 +17,13 @@ export const BLEND_MODES = [
   { id: "multiply",     label: "Multiply · 곱하기" },
   { id: "color-burn",   label: "Color Burn · 색상 번" },
   { id: "linear-burn",  label: "Linear Burn · 선형 번" },
+  { id: "darker-color", label: "Darker Color · 어두운 색상" },
   { sep: true },
   { id: "lighten",      label: "Lighten · 밝게 하기" },
   { id: "screen",       label: "Screen · 스크린" },
   { id: "color-dodge",  label: "Color Dodge · 색상 닷지" },
   { id: "linear-dodge", label: "Linear Dodge · 선형 닷지(추가)" },
+  { id: "lighter-color", label: "Lighter Color · 밝은 색상" },
   { sep: true },
   { id: "overlay",      label: "Overlay · 오버레이" },
   { id: "soft-light",   label: "Soft Light · 소프트 라이트" },
@@ -28,9 +31,12 @@ export const BLEND_MODES = [
   { id: "vivid-light",  label: "Vivid Light · 비비드 라이트" },
   { id: "linear-light", label: "Linear Light · 선형 라이트" },
   { id: "pin-light",    label: "Pin Light · 핀 라이트" },
+  { id: "hard-mix",     label: "Hard Mix · 하드 혼합" },
   { sep: true },
   { id: "difference",   label: "Difference · 차이" },
   { id: "exclusion",    label: "Exclusion · 제외" },
+  { id: "subtract",     label: "Subtract · 빼기" },
+  { id: "divide",       label: "Divide · 나누기" },
   { sep: true },
   { id: "hue",          label: "Hue · 색조" },
   { id: "saturation",   label: "Saturation · 채도" },
@@ -63,6 +69,7 @@ const NATIVE_GCO = {
 const CUSTOM = new Set([
   "dissolve", "linear-burn", "linear-dodge",
   "vivid-light", "linear-light", "pin-light",
+  "hard-mix", "subtract", "divide", "darker-color", "lighter-color",
 ]);
 
 // 유효성 검사용(드롭다운/마이그레이션). 알 수 없는 값은 normal로 취급.
@@ -102,6 +109,28 @@ function pinLightCh(cb, cs) {
   // cs<=0.5 → min(cb, 2cs) / else max(cb, 2(cs-0.5))
   return cs <= 0.5 ? Math.min(cb, 2 * cs) : Math.max(cb, 2 * (cs - 0.5));
 }
+// 하드 혼합(PS): cb + cs >= 1 → 1, 아니면 0 (채널별 2치화 = 비비드 라이트 결과의 한계값)
+function hardMixCh(cb, cs) { return cb + cs >= 1 ? 1 : 0; }
+// 빼기(PS): max(0, cb - cs)
+function subtractCh(cb, cs) { return clamp01(cb - cs); }
+// 나누기(PS): cb / cs. cs==0 이면 배경이 0일 때만 0, 아니면 1(흰색).
+function divideCh(cb, cs) {
+  if (cb <= 0) return 0;
+  if (cs <= 0) return 1;
+  return Math.min(1, cb / cs);
+}
+
+// ── 비분리(non-separable) 픽셀 블렌드식: 픽셀 전체 색을 비교해 한쪽을 통째로 고른다 ──
+// 밝기 비교는 W3C 비분리 모드의 Lum(0.3R+0.59G+0.11B)을 쓴다. 동률이면 배경 유지.
+function lum3(r, g, b) { return 0.3 * r + 0.59 * g + 0.11 * b; }
+// 어두운 색상: 두 색 중 Lum 이 낮은 쪽의 RGB 그대로
+function darkerColorPx(cb, cs) { return lum3(cs[0], cs[1], cs[2]) < lum3(cb[0], cb[1], cb[2]) ? cs : cb; }
+// 밝은 색상: 두 색 중 Lum 이 높은 쪽의 RGB 그대로
+function lighterColorPx(cb, cs) { return lum3(cs[0], cs[1], cs[2]) > lum3(cb[0], cb[1], cb[2]) ? cs : cb; }
+const PX_FN = {
+  "darker-color": darkerColorPx,
+  "lighter-color": lighterColorPx,
+};
 
 // id → 채널 블렌드 함수 (dissolve 제외: dissolve는 채널식이 아니라 알파 마스킹 방식)
 const CH_FN = {
@@ -110,6 +139,9 @@ const CH_FN = {
   "vivid-light": vividLightCh,
   "linear-light": linearLightCh,
   "pin-light": pinLightCh,
+  "hard-mix": hardMixCh,
+  subtract: subtractCh,
+  divide: divideCh,
 };
 
 // ── per-pixel 합성 본체 ────────────────────────────────────────────────────
@@ -136,6 +168,28 @@ function blendChannelMode(backdrop, src, fn, layerOpacity) {
       // 배경이 있는(αb>0) 영역만 블렌드, 그 외엔 소스 원색이 보이도록 처리
       const blended = (1 - ab) * cs + ab * fn(cb, cs);
       const co = (as * blended + (1 - as) * ab * cb) / ao;
+      b[i + c] = Math.round(clamp01(co) * 255);
+    }
+    b[i + 3] = Math.round(ao * 255);
+  }
+}
+
+// 비분리 모드 합성(darker/lighter color). 블렌드 결과 B(Cb,Cs)를 픽셀 단위로 구한 뒤
+// blendChannelMode 와 같은 W3C source-over 합성식으로 섞는다.
+function blendPixelMode(backdrop, src, pxFn, layerOpacity) {
+  const b = backdrop.data, s = src.data, n = b.length;
+  const cbv = [0, 0, 0], csv = [0, 0, 0];
+  for (let i = 0; i < n; i += 4) {
+    const as = (s[i + 3] / 255) * layerOpacity;
+    if (as <= 0) continue;
+    const ab = b[i + 3] / 255;
+    const ao = as + ab * (1 - as);
+    if (ao <= 0) { b[i] = b[i + 1] = b[i + 2] = b[i + 3] = 0; continue; }
+    for (let c = 0; c < 3; c++) { cbv[c] = b[i + c] / 255; csv[c] = s[i + c] / 255; }
+    const bl = pxFn(cbv, csv); // cbv 또는 csv 자체를 돌려준다(아래 루프에서 둘 다 수정하지 않음)
+    for (let c = 0; c < 3; c++) {
+      const blended = (1 - ab) * csv[c] + ab * bl[c];
+      const co = (as * blended + (1 - as) * ab * cbv[c]) / ao;
       b[i + c] = Math.round(clamp01(co) * 255);
     }
     b[i + 3] = Math.round(ao * 255);
@@ -231,6 +285,20 @@ export function clipAlphaByAlpha(destCanvas, baseAlphaCanvas, baseImageData = nu
 }
 
 // ── 공개 API ──────────────────────────────────────────────────────────────
+// 커스텀(per-pixel) 모드 여부. 네이티브 GCO 모드는 false.
+export function isCustomBlendMode(id) { return CUSTOM.has(id); }
+
+// blendImageData(backdrop, src, mode, opacity)
+//   순수 ImageData 합성(DOM 불필요 → 단위 테스트 가능). 커스텀 모드만 처리하며 backdrop 을 in-place 갱신.
+//   처리했으면 true, 커스텀 모드가 아니면(네이티브 GCO 대상) 아무것도 안 하고 false.
+export function blendImageData(backdrop, src, mode, opacity = 1) {
+  if (!CUSTOM.has(mode)) return false;
+  if (mode === "dissolve") blendDissolve(backdrop, src, opacity);
+  else if (PX_FN[mode]) blendPixelMode(backdrop, src, PX_FN[mode], opacity);
+  else blendChannelMode(backdrop, src, CH_FN[mode], opacity);
+  return true;
+}
+
 // blendLayerOnto(ctx, layer)
 //   ctx: 이미 아래 레이어들이 그려진 "문서 크기" 2D 컨텍스트(willReadFrequently 권장).
 //   layer: { canvas, blendMode, opacity, visible } 형태의 레이어.
@@ -251,7 +319,7 @@ export function blendLayerOnto(ctx, layer) {
     return;
   }
 
-  // 2) 커스텀 6종: per-pixel 합성
+  // 2) 커스텀 11종: per-pixel 합성
   if (CUSTOM.has(mode)) {
     const backdrop = ctx.getImageData(0, 0, w, h);
     // 소스(레이어) 픽셀. 레이어 캔버스는 문서와 동일 크기이므로 그대로 읽는다.
@@ -259,8 +327,7 @@ export function blendLayerOnto(ctx, layer) {
       ? layer.ctx.getImageData(0, 0, w, h)
       : layer.canvas.getContext("2d").getImageData(0, 0, w, h);
 
-    if (mode === "dissolve") blendDissolve(backdrop, src, op);
-    else blendChannelMode(backdrop, src, CH_FN[mode], op);
+    blendImageData(backdrop, src, mode, op);
 
     ctx.putImageData(backdrop, 0, 0);
     return;

@@ -1,6 +1,7 @@
 // options-bar.js — 활성 도구에 맞는 옵션 컨트롤을 보여준다. 도구가 바뀌면 다시 그린다.
 
 import { EVT, TOOL } from "../core/constants.js";
+import { CROP_RATIOS } from "../tools/tool-ext-math.js";
 
 export class OptionsBar {
   constructor(app, el) {
@@ -253,6 +254,58 @@ export class OptionsBar {
         g.appendChild(btn);
         break;
       }
+      // ── 확장 도구 ──
+      case TOOL.CROP: {
+        this._select("비율", "cropRatio", CROP_RATIOS);
+        const crop = this.app.tools.tools[TOOL.CROP];
+        this._button("자르기", () => crop?.commit(), "현재 영역으로 자릅니다 (Enter)");
+        this._button("취소", () => crop?.cancel(), "자르기 영역을 지웁니다 (Esc)");
+        this._hint("드래그=영역 · 핸들=크기 · 안쪽 드래그=이동 · Enter/더블클릭=자르기 · Esc=취소 (자유 비율에서 Shift=정사각)");
+        break;
+      }
+      case TOOL.POLYLASSO:
+        this._hint("클릭=꼭짓점 · 시작점 클릭/더블클릭/Enter=닫기 · Backspace=마지막 점 취소 · Esc=취소 (Shift=45°)");
+        break;
+      case TOOL.MAGLASSO:
+        this._slider("폭", "magLassoWidth", 1, 40, 1, "px", 1, "커서 주변 몇 px 안에서 가장자리를 찾을지");
+        this._slider("빈도", "magLassoFrequency", 0, 100, 1, "", 1, "고정점을 자동으로 박는 빈도(클수록 촘촘)");
+        this._hint("클릭=시작 → 가장자리를 따라 이동 · 클릭=고정점 · 시작점 클릭/더블클릭/Enter=닫기 · Backspace=고정점 취소 · Esc=취소");
+        break;
+      case TOOL.QUICKSELECT:
+        this._slider("크기", "brushSize", 1, 500, 1, "px");
+        this._slider("허용오차", "quickSelectTolerance", 0, 255, 1);
+        this._hint("칠하면 비슷한 색 영역이 선택에 더해짐 · Alt=빼기 · 새로 시작은 Ctrl+D");
+        break;
+      case TOOL.MAGICERASER:
+        this._slider("허용오차", "magicEraserTolerance", 0, 255, 1);
+        this._slider("불투명도", "magicEraserOpacity", 0, 1, 0.01, "%", 100);
+        this._checkbox("인접 영역만", "magicEraserContiguous");
+        break;
+      case TOOL.BGERASER:
+        this._slider("크기", "brushSize", 1, 500, 1, "px");
+        this._slider("경도", "brushHardness", 0, 1, 0.01, "%", 100);
+        this._slider("허용오차", "bgEraserTolerance", 0, 255, 1);
+        this._select("샘플링", "bgEraserSampling", [["continuous", "연속"], ["once", "한 번"]]);
+        this._checkbox("인접 영역만", "bgEraserContiguous");
+        break;
+      case TOOL.SPOTHEAL:
+        this._slider("크기", "brushSize", 1, 500, 1, "px");
+        this._hint("잡티 위를 칠하고 놓으면 주변 텍스처로 자동 채움(소스 지정 불필요).");
+        break;
+      case TOOL.REDEYE:
+        this._slider("동공 크기", "redEyePupil", 0, 1, 0.01, "%", 100, "클수록 덜 붉은 가장자리까지 보정");
+        this._slider("어둡게", "redEyeDarken", 0, 1, 0.01, "%", 100);
+        this._hint("눈동자를 클릭하거나 드래그로 감싸세요.");
+        break;
+      case TOOL.COLORREPLACE:
+        this._slider("크기", "brushSize", 1, 500, 1, "px");
+        this._slider("경도", "brushHardness", 0, 1, 0.01, "%", 100);
+        this._slider("허용오차", "colorReplaceTolerance", 0, 255, 1);
+        this._select("모드", "colorReplaceMode", [
+          ["color", "색상"], ["hue", "색조"], ["saturation", "채도"], ["luminosity", "광도"],
+        ]);
+        this._select("샘플링", "colorReplaceSampling", [["continuous", "연속"], ["once", "한 번"]]);
+        break;
       default:
         this._hint("도구를 선택하세요.");
     }
@@ -303,6 +356,17 @@ export class OptionsBar {
     sel.addEventListener("change", () => this.app.state.set(key, sel.value));
     g.appendChild(sel);
     this._updaters[key] = () => { sel.value = this.app.state[key]; };
+  }
+
+  // 즉시 실행 버튼(자르기 확정/취소 등)
+  _button(label, fn, title = "") {
+    const g = this._group();
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = label;
+    if (title) b.title = title;
+    b.addEventListener("click", fn);
+    g.appendChild(b);
   }
 
   _hint(text) {

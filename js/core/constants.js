@@ -48,6 +48,16 @@ export const TOOL = {
   COLORSAMPLER: "colorsampler",
   MEASURE: "measure",
   NOTES: "notes",
+  // 확장 도구(PhotoCraft 대응) — 단축키는 기존 슬롯에 순환으로 편입(tool-manager.js SLOTS)
+  CROP: "crop",                 // 자르기 (C)
+  POLYLASSO: "polylasso",       // 다각형 올가미 (L)
+  MAGLASSO: "maglasso",         // 자석 올가미 (L)
+  QUICKSELECT: "quickselect",   // 빠른 선택 (W)
+  MAGICERASER: "magiceraser",   // 마술 지우개 (E)
+  BGERASER: "bgeraser",         // 배경 지우개 (E)
+  SPOTHEAL: "spotheal",         // 스팟 복구 브러시 (K)
+  REDEYE: "redeye",             // 적목 현상 (K)
+  COLORREPLACE: "colorreplace", // 색상 대체 (B)
 };
 
 // 도형 종류
