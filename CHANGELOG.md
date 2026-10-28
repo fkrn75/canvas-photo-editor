@@ -2,6 +2,71 @@
 
 > 크롬 확장(MV3) 이미지 에디터 — 외부 라이브러리·빌드도구 없이 순수 HTML/CSS/JS + Canvas로 자체 구현.
 
+## 2026-10-28 — v0.9.0 PhotoCraft 기능 이식 1차 배치
+
+> PhotoCraft(storytold/photocraft, Rust 오픈소스 포토샵 클론)와 기능을 비교해 우리에게 없던 항목을 이식. 외부 의존성 0 유지, 모든 처리는 로컬(네트워크 없음). `npm test` 283/283 통과(기존 73개 → 283개).
+
+### 메뉴 구조
+- 메뉴바 하위 메뉴(▸) 지원, 확장 메뉴 모듈 `js/ui/menus/*.js`(index.js 등록부) 병합 방식 도입(`after:`로 기존 항목 뒤에 삽입)
+- 새 메뉴 **선택**(편집 메뉴에 있던 선택 명령 이동), 새 메뉴 **창**(패널 표시/숨기기·배치 초기화)
+- 필터 메뉴를 하위 그룹으로 재구성: 흐림 효과·선명 효과·노이즈·왜곡·픽셀화·렌더·스타일화·기타
+
+### 필터 (+45종)
+- **흐림 효과**: 흐리게, 더 흐리게, 상자 흐림, 방사형 흐림(회전/확대), 표면 흐림, 렌즈 흐림, 평균
+- **선명 효과**: 더 선명하게, 가장자리 선명하게, 스마트 샤픈
+- **노이즈**: 반점 제거, 먼지와 스크래치, 노이즈 감소
+- **왜곡**: 핀치, 극좌표, 잔물결, 기울임, 구형화, 돌리기, 파형, 지그재그
+- **픽셀화**: 색상 하프톤, 수정화, 단면화, 분열, 메조틴트, 점묘화
+- **렌더**: 구름, 차이 구름, 섬유, 렌즈 플레어, 조명 효과
+- **스타일화**: 확산, 솔라리즈, 바람, 타일, 윤곽선 추적, 돌출, 유화, 네온 가장자리
+- **기타**: 사용자 정의(5×5 커널), 최댓값, 최솟값, 오프셋, HSB/HSL
+- 파일: `js/engine/filters-ext-a.js`, `filters-ext-b.js`, `js/ui/menus/filters-a.js`, `filters-b.js`
+
+### 보정 · 조정 레이어 · 블렌드
+- 조정 레이어 +8종(총 16종): 노출, 활기, 색상 균형, 흑백(혼합), 포토 필터, 채널 혼합, 그라디언트 맵, 선택 색상
+- 보정 메뉴 +10: 노출, 활기, 포토 필터, 선택 색상, 흑백(혼합), 어두운 영역/밝은 영역, 색상 대체, 채도 감소(`Shift+Ctrl+U`), 자동 대비(`Alt+Shift+Ctrl+L`), 자동 색상(`Shift+Ctrl+B`)
+- 블렌드 모드 +5종(총 27): 하드 혼합, 어두운 색상, 밝은 색상, 빼기, 나누기
+- **버그 수정**: 그라디언트 맵의 휘도 계산이 내림(`|0`)이던 것을 반올림으로 수정
+- 파일: `js/engine/adjustments.js`, `js/layers/adjustment-layer.js`, `js/engine/blend.js`, `js/ui/adjust-dialogs.js`, `js/ui/adjustment-layer-dialog.js`, `js/ui/menus/adjust.js`
+
+### 레이어 · 이미지 · 편집
+- **이미지**: 이미지 크기(px/%, 비율 유지, 리샘플 6종 — 최단입점·쌍선형·쌍입방·쌍입방 부드럽게·쌍입방 선명하게·Lanczos3, `Alt+Ctrl+I`), 캔버스 크기(기준점 9방향, 상대값, 확장색 4종, `Alt+Ctrl+C`), 임의 각도 회전, 재단(Trim)
+- **레이어**: 복사한 레이어(`Ctrl+J`), 잘라낸 레이어(`Shift+Ctrl+J`), 정렬 6종, 배치 4종(`Ctrl+[ ]` / `Shift+Ctrl+[ ]`), 투명도에서 마스크 만들기, 레이어 마스크 적용, 다른 레이어 숨기기, 모든 레이어 보이기
+- **편집**: 잘라내기(`Ctrl+X`), 병합 복사(`Shift+Ctrl+C`), 제자리에 붙여넣기(`Shift+Ctrl+V`), 패턴 정의
+- **동작 변경**: 복사(`Ctrl+C`)는 포토샵처럼 활성 레이어만 복사. 합성 결과 복사는 병합 복사를 사용
+- 파일: `js/engine/resample.js`, `js/engine/layer-image-ops.js`, `js/ops/doc-ops.js`, `js/ops/layer-ops.js`, `js/ui/doc-dialogs.js`, `js/history/commands/layer-image-commands.js`, `js/layers/layer-manager.js`, `js/io/clipboard.js`
+
+### 도구 (+9, 총 36)
+- **자르기**(`C`, 비율 프리셋·삼분할선·Enter 확정), **다각형 올가미·자석 올가미**(`L` 순환), **빠른 선택**(`W` 순환), **마술 지우개·배경 지우개**(`E` 순환), **스팟 복구 브러시·적목 현상**(`K` 순환), **색상 대체**(`B` 순환)
+- **단축키 변경**: `C` 첫 누름이 패치 → 자르기(포토샵 관례), 다시 누르면 패치
+- 파일: `js/tools/crop-tool.js`, `lasso-ext-tools.js`, `quick-select-tool.js`, `eraser-ext-tools.js`, `spot-heal-tool.js`, `red-eye-tool.js`, `color-replace-tool.js`, `ext-tool-base.js`, `tool-ext-math.js`, `tool-manager.js`, `toolbar.js`, `options-bar.js`, `core/constants.js`
+
+### 파일 입출력
+- **PSD/PSB 열기·저장**(RLE): 레이어 이름·위치·불투명도·표시·블렌드·클리핑·채우기 불투명도·마스크 보존
+- **OpenRaster(.ora) 열기·저장**, **WebP 저장**
+- 파일 > 다른 형식으로 저장 ▸ PSD / PSB / ORA / WebP…, 열기·드래그앤드롭이 `.psd`/`.psb`/`.ora` 수용
+- **한계**: 조정 레이어·레이어 스타일은 PSD 레이어로 저장되지 않음(합성 이미지에는 반영), 텍스트/셰이프는 픽셀로 저장, 16/32비트·CMYK PSD는 열기 거부(안내 메시지)
+- 파일: `js/io/psd.js`, `ora.js`, `zip.js`, `file-io.js`, `js/ui/menus/file.js`
+- 개인정보: 모두 로컬 처리(네트워크 없음)
+
+### 패널 · 보기
+- **새 패널**: 히스토그램(채널·소스·평균/표준편차/중앙값), 정보(커서 RGB/HSB/알파·위치·선택 크기·샘플러), 내비게이터(썸네일·뷰 사각형 드래그·배율)
+- **가이드**: 눈금자에서 끌어 생성, 이동 도구로 이동, 밖으로 끌어 삭제, 가이드 잠금(`Alt+Ctrl+;`)
+- **스냅**(`Shift+Ctrl+;`), 스냅 대상 ▸ 가이드/그리드/문서 경계 — 이동 도구·사각형 선택·가이드에 적용
+- **보기**: 200%, 픽셀 격자(600% 이상), 화면 모드(표준/전체 화면)
+- 파일: `js/ui/histogram-panel.js`, `info-panel.js`, `navigator-panel.js`, `panel-refresh.js`, `js/render/snap.js`, `guides.js`, `renderer.js`, `viewport.js`, `js/tools/move-tool.js`, `marquee-tool.js`, `editor.html`, `css/style.css`, `js/ui/menus/panels.js`
+
+### MCP
+- `mcp/tools.mjs`: `add_adjustment_layer`에 새 조정 타입 8종, `layer_update`의 blend_mode 설명에 새 5종 추가
+
+### 테스트
+- `npm test` 283개 통과(기존 73 → 283). 신규: `tests/filters-ext-a.test.js`, `filters-ext-b.test.js`, `adjust-ext.test.js`, `layer-image.test.js`, `tools-ext.test.js`, `file-formats.test.js`, `panels.test.js` (`blend.test.js` 갱신)
+
+### 이번 배치에서 제외(백로그)
+- CMYK·Lab·16/32비트, 스마트 오브젝트·스마트 필터, 레이어 그룹, 분배(Distribute — 레이어 다중 선택이 없음), 필터 갤러리 47종, 콘텐츠 인식 채우기/이동/비율, 피사체·하늘 선택, Select and Mask, 비디오 타임라인, 아트보드, 레이어 컴프, 변수/데이터 세트, 원근 자르기, 회전 보기 도구, 스마트 가이드, PSD 레이어 효과(lfx2) 쓰기
+
+---
+
 ## 2026-10-05 — AI 연결(MCP) 서버
 
 > AI(Claude 등 MCP 클라이언트)가 에디터를 직접 조작. 외부 의존성 0, 127.0.0.1 전용, 기본 꺼짐.

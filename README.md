@@ -24,27 +24,30 @@
 ## 주요 기능
 
 - **레이어**: 다중 레이어, 표시/숨김, 불투명도(Opacity)와 별도 채우기 불투명도(Fill Opacity), 순서 변경, 복제, 아래로 병합, 보이는 레이어 병합(Merge Visible), 평탄화, Lock(투명/이미지/위치), 이름변경, 썸네일
-- **블렌드 모드 22종**: 네이티브 16종(곱하기·스크린·오버레이·닷지/번 계열·차이/제외·색조/채도/색상/광도 등) + 커스텀 6종(Dissolve·Linear Burn·Linear Dodge·Vivid/Linear/Pin Light) per-pixel 합성
+- **블렌드 모드 27종**: 네이티브 16종(곱하기·스크린·오버레이·닷지/번 계열·차이/제외·색조/채도/색상/광도 등) + 커스텀 11종(Dissolve·Linear Burn·Linear Dodge·Vivid/Linear/Pin Light·하드 혼합·어두운 색상·밝은 색상·빼기·나누기) per-pixel 합성
 - **레이어 마스크 · 클리핑 마스크**: 그레이스케일 마스크 추가/삭제/사용토글 + 브러시 페인팅, 이전 레이어와 클리핑(Ctrl+G)
-- **조정 레이어**(비파괴): 밝기/대비·색조/채도·레벨·커브·포스터화·한계값·반전·흑백, opacity·마스크로 강도 조절
+- **조정 레이어 16종**(비파괴): 밝기/대비·색조/채도·레벨·커브·포스터화·한계값·반전·흑백 + 노출·활기·색상 균형·흑백(혼합)·포토 필터·채널 혼합·그라디언트 맵·선택 색상, opacity·마스크로 강도 조절
 - **레이어 스타일 10종**: Drop Shadow · Inner Shadow · Outer Glow · Inner Glow · Bevel/Emboss · Satin · Color Overlay · Gradient Overlay · Pattern Overlay · Stroke — 비파괴 합성 + Styles 팔레트(프리셋 9종·절차적 패턴 6종, localStorage)
 - **벡터**: 펜 도구(베지어 패스, 표준/자유곡선 모드, Alt+앵커로 코너↔곡선 전환) + Paths 팔레트(패스→선택/채우기/획), 벡터 텍스트 레이어(재편집 가능) + Character 팔레트, 셰이프 레이어(재편집 가능) + 벡터 마스크
 - **그리기 도구**: 브러시(팁 5종 — 둥근·사각·스패터·분필·캘리그래피, 경도·불투명도) + 브러시 동역학 팔레트(Shape/Scatter/Color/Dual Dynamics, Texture/Noise 강도 변조), 연필, 지우개, 페인트 버킷(허용오차), 그라디언트(선형/방사형/각도/반사/다이아몬드 5종), 스포이드, 이동
 - **도형**: 사각형 / 타원 / 직선 / 정다각형(변 수 3~12) / 둥근 사각형 (채우기·외곽선·선 두께, Shift로 정형)
 - **텍스트**: 클릭 입력(한글 IME 지원), 글꼴·크기·굵게·기울임, 확정 후 재클릭으로 재편집
-- **선택**: 사각형/타원/단일 행·열 선택, 올가미, 매직완드, 색상 범위·확대(Grow)·유사 영역, 선택 반전/페더/Modify(확장·축소·테두리·둥글리기), 선택 저장/불러오기, 선택 윤곽(Stroke), Quick Mask 모드(Q)
-- **리터칭·페인팅 도구**: 복제 도장(Clone Stamp) · 복구 브러시(Healing) · 패치(Patch) · 닷지/번/스펀지 · 흐리게/선명/번짐(Blur/Sharpen/Smudge) · History Brush · Art History Brush · Pattern Stamp
-- **변형**: 자유 변형(Free Transform — Scale/Rotate/Skew/Distort/Perspective), 이미지 크기, 캔버스 크기, 90°/180° 회전, 좌우/상하 뒤집기, 선택 영역으로 자르기
-- **색보정**: 레벨(채널 RGB/빨강/녹색/파랑/알파 + 히스토그램), 커브(채널별 톤 곡선 편집), 밝기/대비, 색조/채도, 색상 균형, 채널 혼합(Channel Mixer), 그라디언트 맵, 한계값(Threshold), 포스터화, 균일화(Equalize), 자동 레벨, 흑백, 색 반전 (실시간 미리보기)
+- **선택**: 사각형/타원/단일 행·열 선택, 올가미·다각형 올가미·자석 올가미, 매직완드·빠른 선택, 색상 범위·확대(Grow)·유사 영역, 선택 반전/페더/Modify(확장·축소·테두리·둥글리기), 선택 저장/불러오기, 선택 윤곽(Stroke), Quick Mask 모드(Q)
+- **리터칭·페인팅 도구**: 복제 도장(Clone Stamp) · 복구 브러시(Healing) · 스팟 복구 브러시 · 적목 현상 · 패치(Patch) · 마술 지우개 · 배경 지우개 · 색상 대체 · 닷지/번/스펀지 · 흐리게/선명/번짐(Blur/Sharpen/Smudge) · History Brush · Art History Brush · Pattern Stamp
+- **변형**: 자유 변형(Free Transform — Scale/Rotate/Skew/Distort/Perspective), 이미지 크기(px/%·리샘플 6종), 캔버스 크기(기준점 9방향), 90°/180°/임의 각도 회전, 좌우/상하 뒤집기, 자르기 도구(비율 프리셋·삼분할선), 선택 영역으로 자르기, 재단(Trim)
+- **색보정**: 레벨(채널 RGB/빨강/녹색/파랑/알파 + 히스토그램), 커브(채널별 톤 곡선 편집), 밝기/대비, 색조/채도, 색상 균형, 채널 혼합(Channel Mixer), 그라디언트 맵, 한계값(Threshold), 포스터화, 균일화(Equalize), 자동 레벨·자동 대비·자동 색상, 흑백(혼합), 노출, 활기, 포토 필터, 선택 색상, 어두운 영역/밝은 영역, 색상 대체, 채도 감소, 색 반전 (실시간 미리보기)
 - **채널·알파**: 레벨·커브를 R/G/B/알파 채널별로 개별 적용, 채널 팔레트(R/G/B/A 보기·채널→선택), 불투명(알파) 영역을 선택으로 변환
 - **필터**: 가우시안 블러, 샤픈, 언샤프 마스크, 모션 블러, 미디언, 하이 패스, 모자이크, 엣지 찾기, 노이즈 추가, 세피아, 엠보스, 픽셀 유동화(Liquify — 밀기/오목/볼록/소용돌이), 패턴 메이커
+- **확장 필터 45종**(필터 메뉴 하위 그룹): 흐림 효과(상자·방사형·표면·렌즈 등) · 선명 효과(스마트 샤픈 등) · 노이즈(반점 제거·먼지와 스크래치·노이즈 감소) · 왜곡(핀치·극좌표·잔물결·구형화·파형 등) · 픽셀화(색상 하프톤·수정화·점묘화 등) · 렌더(구름·섬유·렌즈 플레어·조명 효과 등) · 스타일화(유화·윤곽선 추적·네온 가장자리 등) · 기타(사용자 정의 5×5 커널·최댓값/최솟값·오프셋·HSB/HSL)
 - **이미지 모드**: 회색조 / 인덱스 색상(median-cut 양자화+디더) / 비트맵(1bit) / RGB 복귀 변환 + Color Table
 - **자동화**: Actions(작업 녹화·재생) 팔레트, Tool Presets(도구 옵션 저장/적용) 팔레트
 - **정보·주석 도구**: Color Sampler(최대 4 샘플), Measure(거리·각도), Notes(메모 마커)
-- **파일**: 이미지 열기(파일 선택·드래그앤드롭·클립보드 붙여넣기), PNG/JPG 저장, 웹용으로 저장(Save for Web — 포맷/품질/미리보기), File Browser(IndexedDB 최근 이미지 자동저장·재열기)
-- **보기**: 눈금자(Ctrl+R) / 그리드 / 가이드, 줌(5%~3200%)/팬, 줌 도구(클릭 확대·Alt+클릭 축소·드래그 영역 줌)
-- **팔레트/패널**: Swatches·History(작업 내역)·Channels·Paths·Character·Shape·Brushes·Actions·Tool Presets·Layer Styles·File Browser 등 다수 패널을 도킹/플로팅 배치, localStorage 영속
-- **편집**: 실행 취소/다시 실행(Command 패턴, 최대 50단계/256MB 상한)
+- **파일**: 이미지 열기(파일 선택·드래그앤드롭·클립보드 붙여넣기), PNG/JPG/WebP 저장, 웹용으로 저장(Save for Web — 포맷/품질/미리보기), File Browser(IndexedDB 최근 이미지 자동저장·재열기)
+- **PSD/PSB/ORA 왕복**: PSD·PSB·OpenRaster(.ora) 열기와 저장(파일 > 다른 형식으로 저장). 레이어 이름·위치·불투명도·표시·블렌드 모드·클리핑·채우기 불투명도·마스크를 보존. 한계 — 조정 레이어와 레이어 스타일은 PSD 레이어로 저장되지 않고(합성 이미지에는 반영), 텍스트/셰이프는 픽셀 레이어로 저장되며, 16/32비트·CMYK PSD는 열기를 거부합니다
+- **보기**: 눈금자(Ctrl+R) / 그리드 / 가이드(눈금자에서 끌어 생성·이동·삭제·잠금), 스냅(가이드/그리드/문서 경계), 줌(5%~3200%)/팬, 줌 도구(클릭 확대·Alt+클릭 축소·드래그 영역 줌), 픽셀 격자(600% 이상), 화면 모드(표준/전체 화면)
+- **팔레트/패널**: Swatches·History(작업 내역)·Channels·Paths·Character·Shape·Brushes·Actions·Tool Presets·Layer Styles·File Browser·히스토그램·정보·내비게이터 등 다수 패널을 도킹/플로팅 배치, localStorage 영속. [창] 메뉴에서 패널 표시/숨기기·배치 초기화
+- **메뉴**: 파일·편집·이미지·보정·레이어·선택·필터·보기·창·도움말. 하위 메뉴(▸) 지원, 필터는 그룹별 하위 메뉴
+- **편집**: 실행 취소/다시 실행(Command 패턴, 최대 50단계/256MB 상한), 잘라내기·복사(활성 레이어만)·병합 복사·붙여넣기·제자리에 붙여넣기, 패턴 정의
 
 ---
 
@@ -56,17 +59,18 @@
 |---|---|---|---|---|
 | 이동 | V | | 펜 | P |
 | 사각형 선택 | M | | 복제 도장 | S |
-| 올가미 | L | | 복구 브러시 | K |
-| 매직완드 | W | | 패치 | C |
-| 브러시 | B | | 히스토리 브러시 | J |
+| 올가미/다각형/자석 올가미 | L (순환) | | 복구/스팟 복구/적목 현상 | K (순환) |
+| 매직완드/빠른 선택 | W (순환) | | 자르기 → 패치 | C (순환) |
+| 브러시/색상 대체 | B (순환) | | 히스토리 브러시 | J |
 | 연필 | N | | 아트 히스토리 브러시 | F |
-| 지우개 | E | | 패턴 스탬프 | Y |
+| 지우개/마술 지우개/배경 지우개 | E (순환) | | 패턴 스탬프 | Y |
 | 페인트 버킷/그라디언트 | G (순환) | | 닷지/번/스펀지 | O |
 | 스포이드/색상 샘플러/측정 | I (순환) | | 흐리게/선명/번짐 | R |
 | 도형 | U | | 셰이프 레이어 | A |
 | 텍스트 | T | | 퀵 마스크 전환 | Q |
 | 손(팬) | H / 스페이스 | | 돋보기(줌) | Z |
 
+- `L`·`W`·`E`·`K`·`B`·`C` 키도 같은 슬롯의 도구를 누를 때마다 순환합니다. `C`는 첫 누름이 자르기이고 다시 누르면 패치입니다(포토샵 관례에 맞춘 변경).
 - `G` 키는 페인트 버킷 ↔ 그라디언트를 눌러 반복할 때마다 순환합니다.
 - `I` 키는 스포이드 → 색상 샘플러 → 측정 도구 순서로 순환합니다(누를 때마다 다음 도구로 전환).
 - Notes(주석) 도구는 전용 단축키가 없고 툴바 버튼으로만 선택합니다(단축키 슬롯 전량 점유로 인한 의도적 설계).
@@ -85,8 +89,16 @@
 | 자유 변형 | Ctrl+T | | 눈금자 | Ctrl+R |
 | 화면 맞춤 | Ctrl+0 | | 실제 크기 | Ctrl+1 |
 | 확대 / 축소 | Ctrl+`+` / Ctrl+`-`, 마우스 휠 | | | |
+| 잘라내기 | Ctrl+X | | 병합 복사 | Shift+Ctrl+C |
+| 제자리에 붙여넣기 | Shift+Ctrl+V | | 복사한 레이어 | Ctrl+J |
+| 잘라낸 레이어 | Shift+Ctrl+J | | 레이어 배치 | Ctrl+[ ] / Shift+Ctrl+[ ] |
+| 이미지 크기 | Alt+Ctrl+I | | 캔버스 크기 | Alt+Ctrl+C |
+| 채도 감소 | Shift+Ctrl+U | | 자동 색상 | Shift+Ctrl+B |
+| 자동 대비 | Alt+Shift+Ctrl+L | | 가이드 잠금 | Alt+Ctrl+; |
+| 스냅 | Shift+Ctrl+; | | | |
 
 - 브러시 크기: `[` `]` · 전경/배경 교환: `X` · 기본 흑백: `D`
+- 복사(`Ctrl+C`)는 활성 레이어만 복사합니다. 보이는 모든 레이어의 합성 결과를 복사하려면 병합 복사(`Shift+Ctrl+C`)를 사용하세요.
 - 자유 변형 중: `Enter` 확정 · `Esc` 취소
 
 ---
@@ -128,7 +140,7 @@ canvas-photo-editor/
    ├─ layers/           # layer, layer-manager, layer-styles, adjustment-layer, shape-layer, vector-mask
    ├─ render/           # viewport, renderer
    ├─ history/          # command-manager, commands/
-   ├─ tools/            # 도구(브러시·선택·리터칭·펜·측정 등 20종+) + tool-manager
+   ├─ tools/            # 도구(브러시·선택·리터칭·펜·측정 등 36종) + tool-manager
    ├─ selection/         # selection-manager, quick-mask
    ├─ engine/           # color, floodfill, blur, adjustments, filters, blend, image-mode, brush-dynamics, patterns 등
    ├─ paths/            # 펜 패스 관리
@@ -137,13 +149,14 @@ canvas-photo-editor/
    ├─ styles/           # Layer Styles 프리셋·패턴
    ├─ text/             # 벡터 텍스트 레이어
    ├─ notes/            # Notes 주석 관리
-   ├─ io/               # file-io, clipboard
-   └─ ui/               # toolbar, options-bar, menu-bar, dialogs, 각종 팔레트(layers/channels/paths/history/swatches/styles/brushes/actions/tool-presets/file-browser 등), 패널 도킹/플로팅
+   ├─ io/               # file-io, clipboard, psd·ora·zip(PSD/PSB/OpenRaster 입출력), mcp-bridge
+   ├─ ops/              # doc-ops, layer-ops (문서·레이어 고수준 연산)
+   └─ ui/               # toolbar, options-bar, menu-bar, menus/(확장 메뉴 모듈), dialogs, 각종 팔레트(layers/channels/paths/history/swatches/styles/brushes/actions/tool-presets/file-browser/histogram/info/navigator 등), 패널 도킹/플로팅
 ```
 
 ## 개인정보
 
-외부 네트워크 호출·텔레메트리는 전혀 없습니다. 이미지·설정·팔레트 프리셋 등 모든 데이터는 브라우저 로컬(localStorage/IndexedDB)에만 저장되며 외부로 전송되지 않습니다.
+외부 네트워크 호출·텔레메트리는 전혀 없습니다. 이미지·설정·팔레트 프리셋 등 모든 데이터는 브라우저 로컬(localStorage/IndexedDB)에만 저장되며 외부로 전송되지 않습니다. PSD/PSB/ORA/WebP 입출력과 확장 필터·히스토그램·정보·내비게이터 패널도 모두 로컬에서 처리합니다.
 
 유일한 예외는 사용자가 직접 켜는 **AI 연결(MCP)** 입니다. 켰을 때만 이 PC의 `127.0.0.1`(로컬 MCP 서버)와 통신하며, 꺼져 있으면 네트워크 호출은 0건입니다(`js/io/mcp-bridge.js` 외 `fetch`/`XMLHttpRequest`/`WebSocket` 사용 0건).
 

@@ -95,7 +95,7 @@
   <div class="wrap">
     <h1>🎨 Canvas Photo Editor</h1>
     <p>크롬/엣지 확장(MV3)으로 동작하는 <strong>포토샵 7 수준</strong>의 이미지 에디터 — 외부 라이브러리·빌드도구 0, 순수 HTML/CSS/JS + Canvas, 완전 오프라인</p>
-    <span class="badge">사용 매뉴얼 · v0.8 기준 (패널 도킹/플로팅 포함)</span>
+    <span class="badge">사용 매뉴얼 · v0.9 기준 (확장 필터·PSD 입출력·신규 패널 포함)</span>
   </div>
 </header>
 
@@ -111,6 +111,7 @@
       <li><a href="#vector">벡터·텍스트</a></li>
       <li><a href="#auto">자동화·파일</a></li>
       <li><a href="#panels">패널 도킹</a></li>
+      <li><a href="#menus">메뉴·필터</a></li>
       <li><a href="#keys">단축키</a></li>
     </ul>
   </div>
@@ -142,10 +143,10 @@
       <figcaption>실제 실행 화면 (1400×900). 좌측 도구상자 · 상단 메뉴/옵션바 · 중앙 캔버스 · 우측 패널(레이어·색상·견본·스타일 등)</figcaption>
     </figure>
     <div class="cards">
-      <div class="card"><h4>① 상단 메뉴/옵션바</h4><ul><li>파일·편집·이미지·레이어·선택·필터·보기 메뉴</li><li>현재 도구의 세부 옵션이 옵션바에 표시</li><li>좌측 ↶↷ 실행취소/다시실행 버튼</li></ul></div>
+      <div class="card"><h4>① 상단 메뉴/옵션바</h4><ul><li>파일·편집·이미지·보정·레이어·선택·필터·보기·창·도움말 메뉴(하위 메뉴 ▸ 지원)</li><li>현재 도구의 세부 옵션이 옵션바에 표시</li><li>좌측 ↶↷ 실행취소/다시실행 버튼</li></ul></div>
       <div class="card"><h4>② 좌측 도구상자</h4><ul><li>선택·페인팅·리터칭·벡터·내비게이션 도구</li><li>하단 전경/배경 색상 스와치</li><li>일부 도구는 슬롯 순환(클릭 반복)</li></ul></div>
       <div class="card"><h4>③ 중앙 캔버스</h4><ul><li>줌 5%~3200%, 스페이스 드래그로 팬</li><li>눈금자/그리드/가이드 표시 가능</li><li>마칭앤츠 선택 표시</li></ul></div>
-      <div class="card"><h4>④ 우측 패널</h4><ul><li>레이어·색상·견본·스타일·작업내역·채널·패스·문자·셰이프·브러시·액션·프리셋·파일브라우저</li><li>헤더 클릭=접기, 드래그=순서변경/플로팅(<a href="#panels">⑩ 참고</a>)</li></ul></div>
+      <div class="card"><h4>④ 우측 패널</h4><ul><li>레이어·색상·견본·스타일·작업내역·채널·패스·문자·셰이프·브러시·액션·프리셋·파일브라우저·히스토그램·정보·내비게이터</li><li>헤더 클릭=접기, 드래그=순서변경/플로팅(<a href="#panels">⑩ 참고</a>)</li></ul></div>
     </div>
   </section>
 
@@ -153,24 +154,25 @@
   <section id="tools">
     <h2><span class="num">3</span>도구상자</h2>
     <figure class="shot"><img src="data:image/jpeg;base64,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" alt="좌측 도구상자 (수직 툴바)" loading="lazy"><figcaption>좌측 도구상자 — 선택·페인팅·리터칭·벡터·내비게이션 도구가 세로로 배열됩니다.</figcaption></figure>
-    <p class="lead">좌측 도구상자의 도구들입니다. 괄호 안은 단축키이며, 같은 슬롯을 공유하는 도구는 단축키를 반복해 순환합니다.</p>
+    <p class="lead">좌측 도구상자의 도구들입니다(총 36종). 괄호 안은 단축키이며, 같은 슬롯을 공유하는 도구는 단축키를 반복해 순환합니다. v0.9부터 <kbd>C</kbd>의 첫 누름은 자르기이고(포토샵 관례), 두 번째 누름이 패치입니다.</p>
     <div class="cards">
       <div class="card"><h4>이동·선택</h4><ul>
         <li><span class="k">V</span>이동</li>
         <li><span class="k">M</span>선택 윤곽(사각/타원/단일 행·열 — 옵션바)</li>
-        <li><span class="k">L</span>올가미</li>
-        <li><span class="k">W</span>자동 선택(매직완드, 허용오차)</li>
+        <li><span class="k">L</span>올가미 / 다각형 올가미 / 자석 올가미(슬롯 순환)</li>
+        <li><span class="k">W</span>자동 선택(매직완드, 허용오차) / 빠른 선택(슬롯 순환)</li>
+        <li><span class="k">C</span>자르기(비율 프리셋·삼분할선, <kbd>Enter</kbd> 확정) — 다시 누르면 패치</li>
       </ul></div>
       <div class="card"><h4>페인팅</h4><ul>
-        <li><span class="k">B</span>브러시(팁 5종·경도·불투명도·동역학)</li>
+        <li><span class="k">B</span>브러시(팁 5종·경도·불투명도·동역학) / 색상 대체(슬롯 순환)</li>
         <li><span class="k">N</span>연필</li>
-        <li><span class="k">E</span>지우개</li>
+        <li><span class="k">E</span>지우개 / 마술 지우개 / 배경 지우개(슬롯 순환)</li>
         <li><span class="k">G</span>페인트 버킷 / 그라디언트(슬롯 순환)</li>
       </ul></div>
       <div class="card"><h4>리터칭·복원</h4><ul>
         <li><span class="k">S</span>복제 도장(Clone, Alt+클릭 소스)</li>
-        <li><span class="k">K</span>복구 브러시(Healing)</li>
-        <li><span class="k">C</span>패치(Patch)</li>
+        <li><span class="k">K</span>복구 브러시(Healing) / 스팟 복구 브러시 / 적목 현상(슬롯 순환)</li>
+        <li><span class="k">C</span>자르기 → 다시 누르면 패치(Patch)</li>
         <li><span class="k">J</span>히스토리 브러시 / <span class="k">F</span>아트 히스토리</li>
         <li><span class="k">Y</span>패턴 스탬프</li>
       </ul></div>
@@ -200,10 +202,11 @@
     <p class="lead">레이어 1장은 분리된 캔버스이며, 위에서 아래로 합성됩니다.</p>
     <div class="cards">
       <div class="card"><h4>기본 조작</h4><ul><li>추가·표시/숨김·불투명도·순서 변경</li><li>복제·아래로 병합·보이는 레이어 병합(<kbd>Shift+Ctrl+E</kbd>)·평탄화</li><li>잠금(투명/이미지/위치)·칠 불투명도(Fill)</li></ul></div>
-      <div class="card"><h4>블렌드 모드</h4><ul><li>총 22종(네이티브 16 + 커스텀 6)</li><li>dissolve·linear burn/dodge·vivid/linear/pin light</li></ul></div>
+      <div class="card"><h4>블렌드 모드</h4><ul><li>총 27종(네이티브 16 + 커스텀 11)</li><li>dissolve·linear burn/dodge·vivid/linear/pin light</li><li>하드 혼합·어두운 색상·밝은 색상·빼기·나누기</li></ul></div>
       <div class="card"><h4>마스크</h4><ul><li>레이어 마스크(그레이스케일, 브러시로 편집)</li><li>클리핑 마스크(<kbd>Ctrl+G</kbd>)</li><li>벡터 마스크(펜 패스 → 클립)</li></ul></div>
       <div class="card"><h4>레이어 스타일 (10종)</h4><ul><li>Drop/Inner Shadow·Outer/Inner Glow</li><li>Bevel/Emboss·Satin·Stroke</li><li>Color/Gradient/Pattern Overlay</li><li>Styles 팔레트 프리셋 9종 일괄 적용</li></ul></div>
-      <div class="card"><h4>조정 레이어 (비파괴)</h4><ul><li>밝기/대비·색조/채도·레벨·커브</li><li>포스터화·한계값·반전·흑백</li><li>아래 레이어 전체 보정, 마스크로 강도 조절</li></ul></div>
+      <div class="card"><h4>조정 레이어 (비파괴)</h4><ul><li>총 16종: 밝기/대비·색조/채도·레벨·커브</li><li>포스터화·한계값·반전·흑백</li><li>노출·활기·색상 균형·흑백(혼합)</li><li>포토 필터·채널 혼합·그라디언트 맵·선택 색상</li><li>아래 레이어 전체 보정, 마스크로 강도 조절</li></ul></div>
+      <div class="card"><h4>레이어 메뉴 명령</h4><ul><li>복사한 레이어 <kbd>Ctrl+J</kbd> · 잘라낸 레이어 <kbd>Shift+Ctrl+J</kbd></li><li>정렬 6종 · 배치 4종(<kbd>Ctrl+[ ]</kbd> / <kbd>Shift+Ctrl+[ ]</kbd>)</li><li>투명도에서 마스크 만들기 · 레이어 마스크 적용</li><li>다른 레이어 숨기기 · 모든 레이어 보이기</li></ul></div>
       <div class="card"><h4>특수 레이어</h4><ul><li>셰이프 레이어(채움+벡터 윤곽 재편집)</li><li>벡터 텍스트(글꼴/자간/행간 재편집)</li></ul></div>
     </div>
   </section>
@@ -218,7 +221,10 @@
         <li>커브(채널별 톤 곡선, Catmull-Rom)</li>
         <li>밝기/대비·색조/채도·색상 균형</li>
         <li>한계값·포스터화·그라디언트 맵·균일화·채널 혼합</li>
-        <li>자동 레벨·흑백·색 반전</li>
+        <li>자동 레벨·자동 대비(<kbd>Alt+Shift+Ctrl+L</kbd>)·자동 색상(<kbd>Shift+Ctrl+B</kbd>)</li>
+        <li>노출·활기·포토 필터·선택 색상·흑백(혼합)</li>
+        <li>어두운 영역/밝은 영역·색상 대체·채도 감소(<kbd>Shift+Ctrl+U</kbd>)</li>
+        <li>흑백·색 반전</li>
       </ul></div>
       <div class="card"><h4>필터</h4><ul>
         <li>가우시안 블러(StackBlur)·모션 블러</li>
@@ -226,6 +232,7 @@
         <li>노이즈·미디언·모자이크</li>
         <li>엣지 찾기·세피아·엠보스</li>
         <li>픽셀 유동화(Liquify) — 밀기/오목/볼록/소용돌이</li>
+        <li>확장 필터(흐림·선명·노이즈·왜곡·픽셀화·렌더·스타일화·기타)는 <a href="#menus">⑪ 메뉴·필터</a> 참고</li>
       </ul></div>
       <div class="card"><h4>이미지 모드</h4><ul>
         <li>RGB ↔ 회색조(가중평균)</li>
@@ -245,9 +252,9 @@
   <section id="select">
     <h2><span class="num">6</span>선택 &amp; 변형 <span class="tag">선택·편집 메뉴</span></h2>
     <div class="cards">
-      <div class="card"><h4>선택 만들기</h4><ul><li>사각/타원/단일 행·열, 올가미, 자동 선택</li><li>색상 범위(스포이드+허용치)·확대(Grow)·유사(Similar)</li><li>모두 선택 <kbd>Ctrl+A</kbd> · 해제 <kbd>Ctrl+D</kbd></li></ul></div>
+      <div class="card"><h4>선택 만들기</h4><ul><li>사각/타원/단일 행·열, 올가미(다각형·자석), 자동 선택·빠른 선택</li><li>색상 범위(스포이드+허용치)·확대(Grow)·유사(Similar)</li><li>모두 선택 <kbd>Ctrl+A</kbd> · 해제 <kbd>Ctrl+D</kbd></li></ul></div>
       <div class="card"><h4>선택 다듬기</h4><ul><li>반전 <kbd>Shift+Ctrl+I</kbd> · 페더 <kbd>Alt+Ctrl+D</kbd></li><li>확장/축소/테두리/둥글리기</li><li>윤곽 그리기(Stroke, 폭·색·위치)</li><li>선택 저장/불러오기 · 퀵 마스크 <kbd>Q</kbd></li></ul></div>
-      <div class="card"><h4>변형</h4><ul><li>이미지 크기 · 캔버스 크기</li><li>90°/180° 회전 · 좌우/상하 뒤집기</li><li>선택 영역으로 자르기</li><li>자유 변형 <kbd>Ctrl+T</kbd>(Scale/Rotate/Skew/Distort/Perspective)</li></ul></div>
+      <div class="card"><h4>변형</h4><ul><li>이미지 크기(px/%, 비율 유지, 리샘플 6종) <kbd>Alt+Ctrl+I</kbd></li><li>캔버스 크기(기준점 9방향, 상대값, 확장색 4종) <kbd>Alt+Ctrl+C</kbd></li><li>90°/180°/임의 각도 회전 · 좌우/상하 뒤집기</li><li>자르기 도구 · 선택 영역으로 자르기 · 재단(Trim)</li><li>자유 변형 <kbd>Ctrl+T</kbd>(Scale/Rotate/Skew/Distort/Perspective)</li></ul></div>
     </div>
   </section>
 
@@ -269,8 +276,10 @@
     <h2><span class="num">8</span>자동화 &amp; 파일</h2>
     <figure class="shot"><img src="data:image/jpeg;base64,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" alt="Actions(액션) 팔레트 — 매크로 녹화·재생, 세트 관리" loading="lazy"><figcaption>Actions(액션) 팔레트 — 작업을 매크로로 녹화·재생하고 세트로 관리합니다. 같은 영역에 패턴 메이커·툴 프리셋 도구가 함께 제공됩니다.</figcaption></figure>
     <div class="cards">
+      <div class="card"><h4>편집 메뉴 (복사·붙여넣기)</h4><ul><li>잘라내기 <kbd>Ctrl+X</kbd></li><li>복사 <kbd>Ctrl+C</kbd>는 활성 레이어만 복사</li><li>병합 복사 <kbd>Shift+Ctrl+C</kbd>(보이는 레이어 합성 복사)</li><li>제자리에 붙여넣기 <kbd>Shift+Ctrl+V</kbd> · 패턴 정의</li></ul></div>
       <div class="card"><h4>자동화</h4><ul><li>액션(매크로): 작업 녹화·재생, 세트 관리</li><li>패턴 메이커: 타일 패턴 생성·저장</li><li>툴 프리셋: 도구 옵션 묶음 저장/적용</li></ul></div>
-      <div class="card"><h4>파일 입출력</h4><ul><li>열기: 파일 선택 · 드래그앤드롭 · 클립보드 붙여넣기</li><li>저장: PNG / JPG</li><li>Save for Web: 포맷·품질·미리보기·용량 추정</li></ul></div>
+      <div class="card"><h4>파일 입출력</h4><ul><li>열기: 파일 선택 · 드래그앤드롭 · 클립보드 붙여넣기 (이미지 + <code>.psd</code> <code>.psb</code> <code>.ora</code>)</li><li>저장: PNG / JPG / WebP</li><li>파일 &gt; 다른 형식으로 저장 ▸ PSD / PSB / ORA / WebP…</li><li>Save for Web: 포맷·품질·미리보기·용량 추정</li></ul></div>
+      <div class="card"><h4>PSD · PSB · ORA 왕복</h4><ul><li>레이어 이름·위치·불투명도·표시·블렌드 모드·클리핑·채우기 불투명도·마스크 보존</li><li>한계: 조정 레이어와 레이어 스타일은 PSD 레이어로 저장되지 않음(합성 이미지에는 반영)</li><li>한계: 텍스트/셰이프는 픽셀 레이어로 저장</li><li>한계: 16/32비트·CMYK PSD는 열기 거부(안내 메시지)</li><li>모든 처리는 로컬, 네트워크 사용 없음</li></ul></div>
       <div class="card"><h4>파일 브라우저</h4><ul><li>연 이미지 썸네일 자동 저장(IndexedDB)</li><li>최근 이미지 그리드(LRU 30개)</li><li>클릭 재열기 · 세션 간 영속</li></ul></div>
     </div>
   </section>
@@ -280,7 +289,9 @@
     <h2><span class="num">9</span>보기 &amp; 내비게이션</h2>
     <div class="cards">
       <div class="card"><h4>줌 · 팬</h4><ul><li>휠 줌 5%~3200%</li><li>스페이스 드래그 또는 손 도구로 팬</li><li>화면 맞춤 <kbd>Ctrl+0</kbd> · 실제 크기 <kbd>Ctrl+1</kbd></li></ul></div>
-      <div class="card"><h4>보조선</h4><ul><li>눈금자 <kbd>Ctrl+R</kbd></li><li>그리드 · 가이드(추가/지우기)</li></ul></div>
+      <div class="card"><h4>보조선</h4><ul><li>눈금자 <kbd>Ctrl+R</kbd></li><li>그리드</li><li>가이드: 눈금자에서 끌어 생성 · 이동 도구로 이동 · 캔버스 밖으로 끌어 삭제 · 가이드 잠금 <kbd>Alt+Ctrl+;</kbd></li></ul></div>
+      <div class="card"><h4>스냅</h4><ul><li>스냅 켜기/끄기 <kbd>Shift+Ctrl+;</kbd></li><li>스냅 대상 ▸ 가이드 / 그리드 / 문서 경계</li><li>이동 도구·사각형 선택·가이드에 적용</li></ul></div>
+      <div class="card"><h4>보기 모드</h4><ul><li>배율 200% 보기</li><li>픽셀 격자(600% 이상에서 표시)</li><li>화면 모드: 표준 / 전체 화면</li></ul></div>
     </div>
   </section>
 
@@ -292,23 +303,41 @@
     <div class="cards">
       <div class="card"><h4>순서 변경</h4><ul><li>패널 헤더를 같은 도크 안에서 <strong>위/아래로 드래그</strong></li></ul></div>
       <div class="card"><h4>플로팅 / 도크 이동</h4><ul><li>헤더를 <strong>캔버스나 가장자리로 드래그</strong> → 좌/우/하단 도크 이동 또는 자유 플로팅</li><li>플로팅 패널의 <strong>⤓</strong> 버튼으로 도크 복귀</li></ul></div>
+      <div class="card"><h4>히스토그램 · 정보 · 내비게이터</h4><ul><li><strong>히스토그램</strong>: 채널·소스 선택, 평균/표준편차/중앙값 표시</li><li><strong>정보</strong>: 커서 위치의 RGB/HSB/알파, 위치, 선택 크기, 색 샘플러 값</li><li><strong>내비게이터</strong>: 썸네일, 뷰 사각형 드래그로 이동, 배율 표시</li><li>[창] 메뉴에서 패널 표시/숨기기 · 배치 초기화</li></ul></div>
       <div class="card"><h4>크기 · 접기 · 저장</h4><ul><li>도크 경계 드래그로 너비/높이 조절</li><li>헤더 클릭으로 접기/펴기</li><li>모든 배치는 자동 저장(다음 실행에 복원)</li></ul></div>
     </div>
   </section>
 
+  <!-- 메뉴 구조 / 확장 필터 -->
+  <section id="menus">
+    <h2><span class="num">11</span>메뉴 구조 &amp; 필터 목록 <span class="tag">v0.9</span></h2>
+    <p class="lead">메뉴바는 하위 메뉴(▸)를 지원합니다. 편집 메뉴에 있던 선택 명령은 새 <strong>선택</strong> 메뉴로, 패널 표시/숨기기와 배치 초기화는 새 <strong>창</strong> 메뉴로 옮겨졌습니다. 필터 메뉴는 아래 하위 그룹으로 구성됩니다.</p>
+    <div class="cards">
+      <div class="card"><h4>흐림 효과</h4><ul><li>흐리게 · 더 흐리게 · 상자 흐림</li><li>방사형 흐림(회전/확대)</li><li>표면 흐림 · 렌즈 흐림 · 평균</li></ul></div>
+      <div class="card"><h4>선명 효과</h4><ul><li>더 선명하게 · 가장자리 선명하게</li><li>스마트 샤픈</li></ul></div>
+      <div class="card"><h4>노이즈</h4><ul><li>반점 제거 · 먼지와 스크래치</li><li>노이즈 감소</li></ul></div>
+      <div class="card"><h4>왜곡</h4><ul><li>핀치 · 극좌표 · 잔물결 · 기울임</li><li>구형화 · 돌리기 · 파형 · 지그재그</li></ul></div>
+      <div class="card"><h4>픽셀화</h4><ul><li>색상 하프톤 · 수정화 · 단면화</li><li>분열 · 메조틴트 · 점묘화</li></ul></div>
+      <div class="card"><h4>렌더</h4><ul><li>구름 · 차이 구름 · 섬유</li><li>렌즈 플레어 · 조명 효과</li></ul></div>
+      <div class="card"><h4>스타일화</h4><ul><li>확산 · 솔라리즈 · 바람 · 타일</li><li>윤곽선 추적 · 돌출 · 유화 · 네온 가장자리</li></ul></div>
+      <div class="card"><h4>기타</h4><ul><li>사용자 정의(5×5 커널)</li><li>최댓값 · 최솟값 · 오프셋</li><li>HSB/HSL</li></ul></div>
+    </div>
+    <div class="note">기존 필터(가우시안 블러·모션 블러·언샤프 마스크·하이 패스·엠보스·유동화 등)는 그대로 필터 메뉴에서 사용합니다. 이번 확장으로 필터가 45종 추가되었습니다.</div>
+  </section>
+
   <!-- 단축키 -->
   <section id="keys">
-    <h2><span class="num">11</span>단축키 모음</h2>
+    <h2><span class="num">12</span>단축키 모음</h2>
     <h3>도구</h3>
     <table>
       <tr><th>도구</th><th>키</th><th>도구</th><th>키</th></tr>
       <tr><td>이동</td><td><kbd>V</kbd></td><td>펜</td><td><kbd>P</kbd></td></tr>
       <tr><td>선택 윤곽</td><td><kbd>M</kbd></td><td>복제 도장</td><td><kbd>S</kbd></td></tr>
-      <tr><td>올가미</td><td><kbd>L</kbd></td><td>복구 브러시</td><td><kbd>K</kbd></td></tr>
-      <tr><td>자동 선택</td><td><kbd>W</kbd></td><td>패치</td><td><kbd>C</kbd></td></tr>
-      <tr><td>브러시</td><td><kbd>B</kbd></td><td>히스토리 브러시</td><td><kbd>J</kbd></td></tr>
+      <tr><td>올가미/다각형/자석 올가미</td><td><kbd>L</kbd> (순환)</td><td>복구/스팟 복구/적목 현상</td><td><kbd>K</kbd> (순환)</td></tr>
+      <tr><td>자동 선택/빠른 선택</td><td><kbd>W</kbd> (순환)</td><td>자르기 → 패치</td><td><kbd>C</kbd> (순환)</td></tr>
+      <tr><td>브러시/색상 대체</td><td><kbd>B</kbd> (순환)</td><td>히스토리 브러시</td><td><kbd>J</kbd></td></tr>
       <tr><td>연필</td><td><kbd>N</kbd></td><td>아트 히스토리</td><td><kbd>F</kbd></td></tr>
-      <tr><td>지우개</td><td><kbd>E</kbd></td><td>패턴 스탬프</td><td><kbd>Y</kbd></td></tr>
+      <tr><td>지우개/마술·배경 지우개</td><td><kbd>E</kbd> (순환)</td><td>패턴 스탬프</td><td><kbd>Y</kbd></td></tr>
       <tr><td>버킷/그라디언트</td><td><kbd>G</kbd></td><td>닷지/번/스펀지</td><td><kbd>O</kbd></td></tr>
       <tr><td>스포이드/샘플러/측정</td><td><kbd>I</kbd></td><td>흐리게/선명/번짐</td><td><kbd>R</kbd></td></tr>
       <tr><td>도형</td><td><kbd>U</kbd></td><td>셰이프 레이어</td><td><kbd>A</kbd></td></tr>
@@ -328,7 +357,15 @@
       <tr><td>화면 맞춤</td><td><kbd>Ctrl+0</kbd></td><td>실제 크기</td><td><kbd>Ctrl+1</kbd></td></tr>
       <tr><td>확대 / 축소</td><td><kbd>Ctrl++</kbd> / <kbd>Ctrl+-</kbd> / 휠</td><td>눈금자</td><td><kbd>Ctrl+R</kbd></td></tr>
       <tr><td>브러시 크기</td><td><kbd>[</kbd> <kbd>]</kbd></td><td>전경/배경 교환 · 기본색</td><td><kbd>X</kbd> · <kbd>D</kbd></td></tr>
+      <tr><td>잘라내기</td><td><kbd>Ctrl+X</kbd></td><td>병합 복사</td><td><kbd>Shift+Ctrl+C</kbd></td></tr>
+      <tr><td>제자리에 붙여넣기</td><td><kbd>Shift+Ctrl+V</kbd></td><td>복사한 레이어</td><td><kbd>Ctrl+J</kbd></td></tr>
+      <tr><td>잘라낸 레이어</td><td><kbd>Shift+Ctrl+J</kbd></td><td>레이어 배치</td><td><kbd>Ctrl+[ ]</kbd> / <kbd>Shift+Ctrl+[ ]</kbd></td></tr>
+      <tr><td>이미지 크기</td><td><kbd>Alt+Ctrl+I</kbd></td><td>캔버스 크기</td><td><kbd>Alt+Ctrl+C</kbd></td></tr>
+      <tr><td>채도 감소</td><td><kbd>Shift+Ctrl+U</kbd></td><td>자동 색상</td><td><kbd>Shift+Ctrl+B</kbd></td></tr>
+      <tr><td>자동 대비</td><td><kbd>Alt+Shift+Ctrl+L</kbd></td><td>가이드 잠금</td><td><kbd>Alt+Ctrl+;</kbd></td></tr>
+      <tr><td>스냅</td><td><kbd>Shift+Ctrl+;</kbd></td><td></td><td></td></tr>
     </table>
+    <div class="note">복사(<kbd>Ctrl+C</kbd>)는 활성 레이어만 복사합니다. 여러 레이어가 합쳐진 결과를 복사하려면 병합 복사(<kbd>Shift+Ctrl+C</kbd>)를 사용하세요. <kbd>C</kbd> 키는 첫 누름이 자르기, 다시 누르면 패치입니다.</div>
   </section>
 
 </main>

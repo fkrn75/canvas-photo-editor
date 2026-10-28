@@ -8,14 +8,14 @@
 
 ## 📊 현황 대시보드
 
-> 2026-09-13 갱신: iteration 1~8(v0.2.0~v0.8.0, CHANGELOG.md 근거) 전체 완료 반영. 아래 본문 체크박스는 이 표와 일치하도록 갱신됨.
+> 2026-10-28 갱신: iteration 9(v0.9.0, PhotoCraft 기능 이식 1차) 반영. 이전(2026-09-13)에는 iteration 1~8(v0.2.0~v0.8.0, CHANGELOG.md 근거) 전체 완료를 반영했음. 아래 본문 체크박스는 이 표와 일치하도록 갱신됨.
 
 | 단계 | 완료 | 부분 | 미구현 |
 |---|---|---|---|
 | 🟢 핵심(MVP) | 전부 ✅(Marquee/Shape/Text/Gradient/줌도구 포함) | — | — |
 | 🟡 중급 | 전부 ✅(iteration 1~3: 블렌드·마스크·Gradient·보정·필터·선택·눈금자/가이드) | — | — |
-| 🟠 고급 | 대부분 ✅(iteration 4~8) | Crop 도구(핸들)·Trim/Reveal All | 예술계열 필터·Render(Lens Flare 등)·Audio Annotation |
-| 🔴 제외 | — | — | (의도적 스킵) |
+| 🟠 고급 | 대부분 ✅(iteration 4~9) | Reveal All | 예술계열 필터(필터 갤러리 47종)·Audio Annotation |
+| 🔴 제외 | PSD/PSB/ORA 왕복(iteration 9, 한계 있음) | — | (의도적 스킵) |
 
 ## ✅ iteration 1 완료 (2026-06-14, 팀 오케스트라 4워커 병렬 + 브라우저 검증)
 
@@ -91,7 +91,44 @@
 - [x] **File Browser(IndexedDB)**(F): 최근 이미지 썸네일 자동저장·재열기·LRU 30·세션영속(T가 보류한 것을 IndexedDB로 해결)
 - [x] **브러시 Texture/Noise 동역학**(D): 절차적 텍스처/노이즈 강도 변조(알파만 곱→기존 색/Dual 독립, 회귀0)
 
-**남은 후속(선택, 미착수)**: Audio Annotation · 예술계열 필터(Artistic/Sketch/Brush Strokes) · Render(Lens Flare/Clouds) 등. 16비트/CMYK/Lab·ICC·인쇄·ImageReady·PSD네이티브는 🔴 제외 유지. **→ 포토샵 7 클론의 핵심·중급·고급·마이너 기능이 사실상 완성됨.**
+**남은 후속(선택, 미착수)**: Audio Annotation · 예술계열 필터(Artistic/Sketch/Brush Strokes) 등. Render(Clouds/Lens Flare/Lighting Effects)는 iteration 9에서 구현. 16비트/CMYK/Lab·ICC·인쇄·ImageReady는 🔴 제외 유지(PSD/PSB 레이어 보존 왕복은 iteration 9에서 지원). **→ 포토샵 7 클론의 핵심·중급·고급·마이너 기능이 사실상 완성됨.**
+
+### iteration 9 완료 (PhotoCraft 기능 이식 1차, v0.9.0, 2026-10-28) — `npm test` 283/283 통과
+
+> PhotoCraft(storytold/photocraft)와 기능을 비교해 없던 항목을 이식. 상세는 [CHANGELOG.md](../CHANGELOG.md) v0.9.0.
+
+- [x] **메뉴 구조**: 하위 메뉴(▸) 지원 · 확장 메뉴 모듈 `js/ui/menus/*.js` 병합 방식 · 새 메뉴 [선택]·[창] · 필터 메뉴 하위 그룹(흐림·선명·노이즈·왜곡·픽셀화·렌더·스타일화·기타)
+- [x] **필터 +45종**: 흐림 효과 · 선명 효과 · 노이즈 · 왜곡 · 픽셀화 · 렌더 · 스타일화 · 기타(사용자 정의 5×5 커널·최댓값·최솟값·오프셋·HSB/HSL) — `js/engine/filters-ext-a.js`, `filters-ext-b.js`
+- [x] **조정 레이어 +8종(총 16종)**: 노출·활기·색상 균형·흑백(혼합)·포토 필터·채널 혼합·그라디언트 맵·선택 색상
+- [x] **보정 메뉴 +10**: 노출·활기·포토 필터·선택 색상·흑백(혼합)·어두운 영역/밝은 영역·색상 대체·채도 감소·자동 대비·자동 색상
+- [x] **블렌드 모드 +5종(총 27)**: 하드 혼합·어두운 색상·밝은 색상·빼기·나누기 · 그라디언트 맵 휘도 내림 → 반올림 버그 수정
+- [x] **이미지**: 이미지 크기(px/%·리샘플 6종) · 캔버스 크기(기준점 9방향·상대값·확장색 4종) · 임의 각도 회전 · 재단(Trim)
+- [x] **레이어**: 복사한 레이어/잘라낸 레이어(Ctrl+J / Shift+Ctrl+J) · 정렬 6종 · 배치 4종 · 투명도에서 마스크 만들기 · 레이어 마스크 적용 · 다른 레이어 숨기기 · 모든 레이어 보이기
+- [x] **편집**: 잘라내기 · 병합 복사 · 제자리에 붙여넣기 · 패턴 정의 · 복사는 활성 레이어만(동작 변경)
+- [x] **도구 +9(총 36)**: 자르기(C) · 다각형 올가미/자석 올가미(L) · 빠른 선택(W) · 마술 지우개/배경 지우개(E) · 스팟 복구 브러시/적목 현상(K) · 색상 대체(B) — C 첫 누름이 자르기, 다시 누르면 패치
+- [x] **파일 입출력**: PSD/PSB 열기·저장(RLE, 레이어 이름·위치·불투명도·표시·블렌드·클리핑·채우기 불투명도·마스크 보존) · OpenRaster(.ora) 열기·저장 · WebP 저장 · 다른 형식으로 저장 ▸ 메뉴. 한계: 조정 레이어·레이어 스타일은 PSD 레이어로 저장 안 됨(합성 이미지엔 반영), 텍스트/셰이프는 픽셀로 저장, 16/32비트·CMYK PSD는 열기 거부
+- [x] **패널 +3**: 히스토그램 · 정보 · 내비게이터
+- [x] **가이드·스냅·보기**: 눈금자에서 가이드 생성/이동/삭제/잠금 · 스냅(가이드/그리드/문서 경계) · 200% · 픽셀 격자(600% 이상) · 화면 모드(표준/전체 화면)
+- [x] **MCP**: `add_adjustment_layer` 새 조정 타입 8종 · `layer_update` blend_mode 설명에 새 5종
+- [x] **테스트**: 73 → 283개(`tests/filters-ext-a`, `filters-ext-b`, `adjust-ext`, `layer-image`, `tools-ext`, `file-formats`, `panels` 신규)
+
+#### 백로그 (이번 배치에서 제외, 미착수)
+- [ ] CMYK · Lab · 16/32비트 색상 모드
+- [ ] 스마트 오브젝트 · 스마트 필터
+- [ ] 레이어 그룹
+- [ ] 분배(Distribute) — 레이어 다중 선택 기능이 선행 필요
+- [ ] 필터 갤러리 47종
+- [ ] 콘텐츠 인식 채우기 / 이동 / 비율
+- [ ] 피사체 선택 · 하늘 선택
+- [ ] Select and Mask
+- [ ] 비디오 타임라인
+- [ ] 아트보드
+- [ ] 레이어 컴프
+- [ ] 변수 / 데이터 세트
+- [ ] 원근 자르기
+- [ ] 회전 보기 도구
+- [ ] 스마트 가이드
+- [ ] PSD 레이어 효과(lfx2) 쓰기
 
 > ⚠️ 알려진 한계(후속): 이미지 크기/자르기/회전/뒤집기 시 레이어 마스크가 함께 변형되지 않음(캔버스 크기 변경은 동기화됨). 🟠 진입 전/후속 iteration에서 app.js 변형부에 마스크 동반 처리 예정.
 
@@ -168,9 +205,9 @@
 - [x] Color Balance / Threshold / Posterize / Gradient Map / Equalize *(iter1)*
 
 ### 필터
-- [x] Unsharp Mask(다이얼로그) / Motion Blur / Median *(iter1)* — Dust & Scratches는 미구현
-- [x] Mosaic / Find Edges *(iter1)* — Crystallize/Color Halftone·Solarize/Diffuse는 미구현
-- [x] High Pass *(iter1)* — Custom 컨볼루션 커널 UI는 미구현. Invert는 보정 메뉴에 있음
+- [x] Unsharp Mask(다이얼로그) / Motion Blur / Median *(iter1)* — Dust & Scratches(먼지와 스크래치)는 *iter9* 구현
+- [x] Mosaic / Find Edges *(iter1)* — Crystallize(수정화)/Color Halftone(색상 하프톤)·Solarize(솔라리즈)/Diffuse(확산)는 *iter9* 구현
+- [x] High Pass *(iter1)* — Custom(사용자 정의 5×5 커널)은 *iter9* 구현. Invert는 보정 메뉴에 있음
 
 ### 기타
 - [x] **눈금자/가이드/그리드**(Ctrl+R, 새 가이드/지우기, 그리드 표시) *(iter2)*
@@ -203,11 +240,12 @@
 
 ### 변형 · 자르기
 - [x] **Free Transform**(핸들 UI): Scale / Rotate / Skew / Distort / Perspective *(iter4)*
-- [ ] Crop 도구(드래그 핸들·Shield) / Trim / Reveal All — 미구현(현재는 메뉴의 "선택 영역으로 자르기"만 존재)
+- [x] **Crop 도구**(C, 비율 프리셋·삼분할선·Enter 확정) / **Trim**(재단) *(iter9)*
+- [ ] Reveal All — 미구현
 
 ### 필터 · 자동화
 - [ ] 예술계열 필터: Artistic(15) / Sketch(14) / Brush Strokes(8) / Texture(6) / Distort(12) — 미구현
-- [ ] Render: Lens Flare / Lighting Effects / Clouds — 미구현
+- [x] Render: Clouds(구름) / Difference Clouds(차이 구름) / Fibers(섬유) / Lens Flare(렌즈 플레어) / Lighting Effects(조명 효과) *(iter9)*
 - [x] **Liquify**(밀기/오목/볼록/소용돌이) / **Pattern Maker**(7.0 신기능) *(iter6)*
 - [x] **Actions(매크로)** 녹화·재생 + Actions 팔레트 *(iter6)*. Batch 처리는 미구현
 
@@ -229,7 +267,7 @@
 - [ ] ~~ImageReady: Rollover / Animation / Image Map / Slice~~
 - [ ] ~~WebDAV(Manage Workflow) / TWAIN 스캐너 / Digimarc 워터마크~~
 - [ ] ~~PDF Import·Export / Multi-Page PDF / 플러그인 SDK / Jump To~~
-- [ ] ~~PSD 네이티브 포맷 저장~~ (선택적: 단순 레이어 직렬화는 🟠 가능)
+- [x] ~~PSD 네이티브 포맷 저장~~ → *iter9에서 PSD/PSB/ORA 레이어 보존 열기·저장 구현.* 한계: 조정 레이어·레이어 스타일 미저장, 텍스트/셰이프는 픽셀로 저장, 16/32비트·CMYK PSD 열기 거부, PSD 레이어 효과(lfx2) 쓰기 미구현
 
 ---
 
@@ -248,4 +286,4 @@
 
 ---
 
-*기준 문서: [photoshop7-feature-spec.md](photoshop7-feature-spec.md) · 코드 인벤토리: 2026-06-14 · 대상: canvas-photo-editor v0.1.0*
+*기준 문서: [photoshop7-feature-spec.md](photoshop7-feature-spec.md) · 코드 인벤토리: 2026-06-14 (iteration 9 반영: 2026-10-28) · 대상: canvas-photo-editor v0.9.0*
